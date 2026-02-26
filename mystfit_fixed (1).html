@@ -1,0 +1,2310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MYSTFIT — Minecraft Server</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;1,300;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<style>
+  :root {
+    --void: #07060d;
+    --deep: #0d0b1a;
+    --shadow: #12101f;
+    --surface: #1a1730;
+    --myst: #6e3ff3;
+    --myst-bright: #9b6fff;
+    --myst-glow: #c4a8ff;
+    --ember: #ff6b2b;
+    --gold: #f0c040;
+    --silver: #c8c0d8;
+    --dim: #6b6080;
+    --text: #e8e0f8;
+  }
+
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--void);
+    color: var(--text);
+    font-family: 'Crimson Pro', serif;
+    overflow-x: hidden;
+    /* cursor: none is applied by JS after elements confirm loaded */
+  }
+
+  /* CURSOR */
+  #cur {
+    position: fixed; width: 10px; height: 10px;
+    background: var(--myst-bright);
+    border-radius: 50%; pointer-events: none;
+    z-index: 9999;
+    top: 0; left: 0;
+    will-change: transform;
+    box-shadow: 0 0 12px var(--myst), 0 0 24px var(--myst);
+    transition: width 0.15s, height 0.15s;
+  }
+  #cur-trail {
+    position: fixed; width: 28px; height: 28px;
+    border: 1px solid rgba(110,63,243,0.5);
+    border-radius: 50%; pointer-events: none;
+    z-index: 9998;
+    top: 0; left: 0;
+    will-change: transform;
+  }
+
+  /* PARTICLES CANVAS */
+  #particles {
+    position: fixed; inset: 0;
+    pointer-events: none; z-index: 0;
+  }
+
+  /* NOISE */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 500; opacity: 0.4;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0;
+    z-index: 200;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 24px 60px;
+    background: linear-gradient(to bottom, rgba(7,6,13,0.95), transparent);
+    backdrop-filter: blur(2px);
+  }
+  .nav-logo {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 1.1rem;
+    letter-spacing: 0.1em;
+    background: linear-gradient(135deg, var(--myst-glow), var(--myst-bright));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: none;
+    filter: drop-shadow(0 0 8px rgba(110,63,243,0.6));
+  }
+  .nav-links { display: flex; gap: 40px; list-style: none; }
+  .nav-links a {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--silver);
+    text-decoration: none;
+    transition: color 0.3s;
+    position: relative;
+  }
+  .nav-links a::after {
+    content: '';
+    position: absolute; bottom: -4px; left: 0;
+    width: 0; height: 1px;
+    background: var(--myst-bright);
+    transition: width 0.3s;
+  }
+  .nav-links a:hover { color: var(--myst-glow); }
+  .nav-links a:hover::after { width: 100%; }
+  .nav-join {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 10px 24px;
+    border: 1px solid var(--myst);
+    color: var(--myst-glow);
+    text-decoration: none;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .nav-join::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: var(--myst);
+    transform: translateX(-100%);
+    transition: transform 0.3s;
+    z-index: 0;
+  }
+  .nav-join:hover::before { transform: translateX(0); }
+  .nav-join:hover { color: #fff; }
+  .nav-join span { position: relative; z-index: 1; }
+
+  /* HERO */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 120px 40px 80px;
+    overflow: hidden;
+  }
+
+  .hero-bg {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 60% at 50% 60%, rgba(110,63,243,0.15), transparent),
+      radial-gradient(ellipse 40% 40% at 20% 20%, rgba(255,107,43,0.06), transparent),
+      radial-gradient(ellipse 50% 50% at 80% 80%, rgba(110,63,243,0.08), transparent),
+      var(--void);
+  }
+
+  /* Pixel grid overlay */
+  .hero-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(110,63,243,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(110,63,243,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(ellipse at center, black 20%, transparent 70%);
+  }
+
+  .hero-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--myst-bright);
+    border: 1px solid rgba(110,63,243,0.4);
+    padding: 8px 20px;
+    margin-bottom: 36px;
+    display: inline-block;
+    position: relative;
+    opacity: 0;
+    animation: fadeUp 1s 0.2s forwards;
+  }
+  .hero-badge::before, .hero-badge::after {
+    content: '◆';
+    position: absolute; top: 50%; transform: translateY(-50%);
+    color: var(--myst); font-size: 0.5rem;
+  }
+  .hero-badge::before { left: -12px; }
+  .hero-badge::after { right: -12px; }
+
+  .hero-title {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: clamp(4rem, 12vw, 9rem);
+    font-weight: 900;
+    line-height: 0.9;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+    position: relative;
+    opacity: 0;
+    animation: fadeUp 1s 0.4s forwards;
+  }
+  .hero-title-main {
+    background: linear-gradient(180deg, #ffffff 0%, var(--myst-glow) 50%, var(--myst) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 30px rgba(110,63,243,0.5));
+    display: block;
+  }
+  .hero-title-shadow {
+    display: block;
+    font-family: 'Cinzel Decorative', serif;
+    font-size: clamp(4rem, 12vw, 9rem);
+    font-weight: 900;
+    position: absolute;
+    top: 6px; left: 50%; transform: translateX(-50%);
+    -webkit-text-fill-color: transparent;
+    -webkit-text-stroke: 1px rgba(110,63,243,0.2);
+    filter: blur(8px);
+    white-space: nowrap;
+    z-index: -1;
+  }
+
+  .hero-tagline {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(0.8rem, 2vw, 1.1rem);
+    letter-spacing: 0.5em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 48px;
+    opacity: 0;
+    animation: fadeUp 1s 0.6s forwards;
+  }
+
+  .hero-desc {
+    font-size: clamp(1rem, 2vw, 1.3rem);
+    line-height: 1.8;
+    color: var(--silver);
+    max-width: 600px;
+    font-weight: 300;
+    margin-bottom: 56px;
+    font-style: italic;
+    opacity: 0;
+    animation: fadeUp 1s 0.8s forwards;
+  }
+
+  .hero-actions {
+    display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;
+    opacity: 0;
+    animation: fadeUp 1s 1s forwards;
+  }
+
+  .btn-main {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 18px 44px;
+    background: linear-gradient(135deg, var(--myst), #4a1fb8);
+    color: #fff;
+    text-decoration: none;
+    border: none;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+    box-shadow: 0 0 30px rgba(110,63,243,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+    cursor: pointer;
+  }
+  .btn-main:hover {
+    box-shadow: 0 0 50px rgba(110,63,243,0.7), inset 0 1px 0 rgba(255,255,255,0.2);
+    transform: translateY(-2px);
+  }
+
+  .btn-outline {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 18px 44px;
+    background: transparent;
+    color: var(--silver);
+    text-decoration: none;
+    border: 1px solid rgba(200,192,216,0.3);
+    transition: all 0.3s;
+    cursor: pointer;
+  }
+  .btn-outline:hover {
+    border-color: var(--myst-bright);
+    color: var(--myst-glow);
+    box-shadow: 0 0 20px rgba(110,63,243,0.2);
+  }
+
+  /* IP BAR */
+  .ip-bar {
+    margin-top: 60px;
+    display: flex; align-items: center; gap: 16px;
+    background: rgba(110,63,243,0.08);
+    border: 1px solid rgba(110,63,243,0.25);
+    padding: 16px 32px;
+    opacity: 0;
+    animation: fadeUp 1s 1.2s forwards;
+  }
+  .ip-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.55rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+  .ip-address {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1rem;
+    color: var(--myst-glow);
+    letter-spacing: 0.1em;
+    cursor: pointer;
+  }
+  .ip-copy {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.55rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    background: rgba(110,63,243,0.2);
+    border: 1px solid rgba(110,63,243,0.4);
+    color: var(--myst-bright);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .ip-copy:hover { background: var(--myst); color: #fff; }
+
+  /* STATUS DOT */
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #4ade80;
+    box-shadow: 0 0 8px #4ade80;
+    animation: pulse-green 2s infinite;
+  }
+  @keyframes pulse-green {
+    0%, 100% { box-shadow: 0 0 8px #4ade80; }
+    50% { box-shadow: 0 0 16px #4ade80, 0 0 24px rgba(74,222,128,0.3); }
+  }
+
+  /* SCROLL INDICATOR */
+  .scroll-hint {
+    position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    opacity: 0; animation: fadeIn 1s 2s forwards;
+  }
+  .scroll-hint span {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.5rem; letter-spacing: 0.3em;
+    text-transform: uppercase; color: var(--dim);
+  }
+  .scroll-line {
+    width: 1px; height: 40px;
+    background: linear-gradient(to bottom, var(--myst), transparent);
+    animation: scrollPulse 2s infinite;
+  }
+  @keyframes scrollPulse {
+    0% { transform: scaleY(0); transform-origin: top; }
+    50% { transform: scaleY(1); transform-origin: top; }
+    51% { transform: scaleY(1); transform-origin: bottom; }
+    100% { transform: scaleY(0); transform-origin: bottom; }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    to { opacity: 1; }
+  }
+
+  /* DIVIDER */
+  .rune-divider {
+    display: flex; align-items: center; gap: 20px;
+    padding: 0 60px; margin: 0;
+  }
+  .rune-divider::before, .rune-divider::after {
+    content: ''; flex: 1; height: 1px;
+    background: linear-gradient(to right, transparent, rgba(110,63,243,0.3), transparent);
+  }
+  .rune-divider span {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 1rem;
+    color: rgba(110,63,243,0.4);
+    letter-spacing: 0.5em;
+  }
+
+  /* SECTION BASE */
+  .section { padding: 100px 60px; position: relative; }
+  .section-tag {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--myst-bright);
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .section-tag::before {
+    content: ''; width: 30px; height: 1px;
+    background: var(--myst);
+  }
+  .section-title {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(2rem, 4vw, 3.5rem);
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 20px;
+  }
+  .section-title em { font-style: italic; color: var(--myst-bright); }
+  .section-intro {
+    font-size: 1.1rem;
+    line-height: 1.8;
+    color: var(--silver);
+    font-weight: 300;
+    max-width: 560px;
+  }
+
+  /* FEATURES */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    margin-top: 60px;
+  }
+  .feature-card {
+    background: var(--deep);
+    padding: 48px 36px;
+    border: 1px solid rgba(110,63,243,0.08);
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s, background 0.3s;
+    cursor: pointer;
+  }
+  .feature-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(to right, transparent, var(--myst), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .feature-card:hover { background: var(--shadow); border-color: rgba(110,63,243,0.3); }
+  .feature-card:hover::before { opacity: 1; }
+
+  .feature-icon {
+    font-size: 2.5rem;
+    margin-bottom: 24px;
+    display: block;
+    filter: drop-shadow(0 0 12px rgba(110,63,243,0.4));
+    transition: transform 0.3s;
+  }
+  .feature-card:hover .feature-icon { transform: scale(1.15) rotate(-5deg); }
+
+  .feature-name {
+    font-family: 'Cinzel', serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+  .feature-desc {
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--dim);
+    font-weight: 300;
+  }
+  .feature-tag {
+    display: inline-block;
+    margin-top: 20px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    background: rgba(110,63,243,0.15);
+    border: 1px solid rgba(110,63,243,0.3);
+    color: var(--myst-bright);
+  }
+
+  /* ABOUT */
+  .about-section { background: var(--deep); }
+  .about-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 80px; align-items: center; margin-top: 60px;
+  }
+  .about-text p {
+    font-size: 1.05rem;
+    line-height: 1.9;
+    color: var(--silver);
+    font-weight: 300;
+    margin-bottom: 20px;
+  }
+  .about-text p strong { color: var(--myst-glow); font-weight: 400; }
+  .about-values {
+    display: flex; flex-direction: column; gap: 2px; margin-top: 40px;
+  }
+  .value-row {
+    display: flex; align-items: center; gap: 16px;
+    padding: 18px 24px;
+    background: rgba(110,63,243,0.05);
+    border-left: 2px solid rgba(110,63,243,0.3);
+    transition: border-color 0.3s, background 0.3s;
+  }
+  .value-row:hover { background: rgba(110,63,243,0.1); border-color: var(--myst); }
+  .value-icon { font-size: 1.2rem; }
+  .value-text { font-family: 'Cinzel', serif; font-size: 0.85rem; letter-spacing: 0.1em; }
+
+  .about-visual {
+    position: relative; height: 480px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+  }
+  .orb-main {
+    width: 280px; height: 280px;
+    background: radial-gradient(circle at 35% 35%, #4a2fb8, #1a0a4a, #07060d);
+    box-shadow: 0 0 60px rgba(110,63,243,0.4), 0 0 120px rgba(110,63,243,0.15), inset 0 0 60px rgba(0,0,0,0.5);
+    animation: orbFloat 6s ease-in-out infinite;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 80px;
+  }
+  .orb-ring {
+    border: 1px solid rgba(110,63,243,0.25);
+    animation: orbRing 8s linear infinite;
+  }
+  .orb-ring-1 { width: 340px; height: 340px; animation-duration: 8s; }
+  .orb-ring-2 { width: 400px; height: 400px; animation-duration: 12s; animation-direction: reverse; }
+  .orb-ring-3 { width: 460px; height: 460px; animation-duration: 16s; border-color: rgba(110,63,243,0.1); }
+  @keyframes orbFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
+  }
+  @keyframes orbRing {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  /* RULES */
+  .rules-section { background: var(--shadow); }
+  .rules-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-top: 60px;
+  }
+  .rule-item {
+    padding: 32px 36px;
+    background: var(--deep);
+    display: flex; gap: 24px; align-items: flex-start;
+    border: 1px solid rgba(110,63,243,0.06);
+    transition: border-color 0.3s;
+  }
+  .rule-item:hover { border-color: rgba(110,63,243,0.2); }
+  .rule-num {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 2rem;
+    font-weight: 900;
+    color: rgba(110,63,243,0.2);
+    line-height: 1;
+    flex-shrink: 0;
+    width: 40px;
+  }
+  .rule-body {}
+  .rule-title {
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+  .rule-desc {
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--dim);
+    font-weight: 300;
+  }
+
+  /* HOW TO JOIN */
+  .join-section {}
+  .join-steps {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 0; margin-top: 60px;
+    position: relative;
+  }
+  .join-steps::before {
+    content: '';
+    position: absolute;
+    top: 36px; left: 10%; right: 10%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(110,63,243,0.4), transparent);
+  }
+  .join-step {
+    padding: 0 24px; text-align: center;
+  }
+  .step-circle {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid rgba(110,63,243,0.4);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 28px;
+    font-size: 1.5rem;
+    position: relative;
+    box-shadow: 0 0 20px rgba(110,63,243,0.15);
+    transition: box-shadow 0.3s, border-color 0.3s;
+  }
+  .join-step:hover .step-circle {
+    box-shadow: 0 0 30px rgba(110,63,243,0.4);
+    border-color: var(--myst-bright);
+  }
+  .step-circle-num {
+    position: absolute;
+    top: -8px; right: -8px;
+    width: 20px; height: 20px;
+    background: var(--myst);
+    border-radius: 50%;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff;
+  }
+  .join-step-title {
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .join-step-desc {
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--dim);
+    font-weight: 300;
+  }
+
+  /* CTA */
+  .cta-section {
+    text-align: center;
+    padding: 120px 60px;
+    background: var(--deep);
+    position: relative;
+    overflow: hidden;
+  }
+  .cta-glow {
+    position: absolute;
+    width: 600px; height: 300px;
+    background: radial-gradient(ellipse, rgba(110,63,243,0.2), transparent);
+    top: 50%; left: 50%; transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+  .cta-title {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: clamp(2rem, 5vw, 4rem);
+    font-weight: 700;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, #fff, var(--myst-glow));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    position: relative;
+  }
+  .cta-sub {
+    font-size: 1.1rem;
+    color: var(--silver);
+    font-weight: 300;
+    font-style: italic;
+    margin-bottom: 48px;
+    position: relative;
+  }
+  .cta-buttons { display: flex; gap: 20px; justify-content: center; position: relative; }
+
+  /* FOOTER */
+  footer {
+    background: var(--void);
+    border-top: 1px solid rgba(110,63,243,0.15);
+    padding: 60px 60px 32px;
+  }
+  .footer-top {
+    display: grid; grid-template-columns: 2fr 1fr 1fr;
+    gap: 60px; margin-bottom: 48px;
+  }
+  .footer-brand h3 {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 1.5rem;
+    background: linear-gradient(135deg, var(--myst-glow), var(--myst-bright));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 16px;
+  }
+  .footer-brand p {
+    font-size: 0.9rem; line-height: 1.7;
+    color: var(--dim); font-weight: 300; max-width: 280px;
+  }
+  .footer-col h4 {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.55rem; letter-spacing: 0.3em;
+    text-transform: uppercase; color: var(--myst-bright);
+    margin-bottom: 20px;
+  }
+  .footer-col ul { list-style: none; }
+  .footer-col ul li { margin-bottom: 10px; }
+  .footer-col ul li a {
+    font-size: 0.9rem; color: var(--dim);
+    text-decoration: none; transition: color 0.3s;
+    font-weight: 300;
+  }
+  .footer-col ul li a:hover { color: var(--text); }
+  .footer-bottom {
+    border-top: 1px solid rgba(110,63,243,0.1);
+    padding-top: 24px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .footer-bottom p {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.5rem; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--dim);
+  }
+
+  /* REVEAL */
+  /* FAQ */
+  .faq-item { border:1px solid rgba(110,63,243,0.15); }
+  .faq-q {
+    width:100%; background:var(--deep); border:none; padding:20px 24px;
+    color:var(--text); font-family:'Cinzel',serif; font-size:0.9rem;
+    text-align:left; cursor:pointer; display:flex; justify-content:space-between;
+    align-items:center; gap:16px; transition:background 0.2s;
+  }
+  .faq-q:hover { background:var(--shadow); }
+  .faq-q[aria-expanded="true"] { color:var(--myst-glow); background:var(--shadow); }
+  .faq-arrow { font-size:0.8rem; color:var(--myst-bright); transition:transform 0.25s; flex-shrink:0; }
+  .faq-q[aria-expanded="true"] .faq-arrow { transform:rotate(90deg); }
+  .faq-a {
+    max-height:0; overflow:hidden;
+    transition:max-height 0.35s ease, padding 0.25s ease;
+    font-size:0.92rem; color:var(--dim); line-height:1.8; font-weight:300;
+    padding:0 24px; background:var(--shadow);
+  }
+  .faq-a.open { max-height:300px; padding:18px 24px; border-top:1px solid rgba(110,63,243,0.1); }
+
+  .reveal { opacity: 0; transform: translate3d(0, 40px, 0); transition: opacity 0.7s ease, transform 0.7s ease; will-change: transform, opacity; }
+  .reveal.visible { opacity: 1; transform: translate3d(0, 0, 0); will-change: auto; }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal { transform: none; transition: opacity 0.3s ease; }
+    .reveal.visible { transform: none; }
+    #cur, #cur-trail { display: none !important; }
+  }
+
+  /* =====================
+     MOBILE RESPONSIVE
+  ===================== */
+  @media (max-width: 768px) {
+    #cur, #cur-trail { display: none; }
+    body { cursor: auto; }
+    .btn-main, .btn-outline, .ip-copy, .nav-join, .feature-card { cursor: pointer; }
+
+    nav { padding: 18px 20px; }
+    .nav-links { display: none; }
+    .nav-join { padding: 8px 16px; font-size: 0.55rem; }
+    #navJoinBtn { display: none; }
+    #hamburger { display: flex !important; }
+
+    .hero { padding: 100px 20px 80px; }
+    .hero-badge { font-size: 0.48rem; letter-spacing: 0.2em; padding: 7px 14px; }
+    .hero-tagline { letter-spacing: 0.2em; font-size: 0.75rem; }
+    .hero-desc { font-size: 1rem; margin-bottom: 36px; }
+    .hero-actions { flex-direction: column; align-items: center; gap: 12px; }
+    .btn-main, .btn-outline { width: 100%; max-width: 280px; text-align: center; padding: 16px 24px; }
+    .ip-bar { flex-wrap: wrap; justify-content: center; gap: 10px; padding: 14px 16px; margin-top: 36px; }
+    .ip-address { font-size: 0.85rem; }
+    .ip-label { display: none; }
+
+    .section { padding: 60px 20px; }
+    .section-title { font-size: clamp(1.6rem, 7vw, 2.4rem); }
+    .section-intro { font-size: 1rem; }
+
+    .features-grid { grid-template-columns: 1fr; }
+    .feature-card { padding: 32px 22px; }
+
+    .about-grid { grid-template-columns: 1fr; gap: 40px; }
+    .about-visual { display: none; }
+
+    .rules-grid { grid-template-columns: 1fr; }
+    .rule-item { padding: 22px 18px; }
+
+    .join-steps { grid-template-columns: 1fr 1fr; gap: 36px; }
+    .join-steps::before { display: none; }
+    .join-step { padding: 0 8px; }
+
+    .cta-section { padding: 70px 20px; }
+    .cta-buttons { flex-direction: column; align-items: center; gap: 12px; }
+
+    footer { padding: 48px 20px 24px; }
+    .footer-top { grid-template-columns: 1fr; gap: 32px; }
+    .footer-bottom { flex-direction: column; gap: 10px; text-align: center; }
+
+    .rune-divider { padding: 0 20px; }
+  }
+
+  @media (max-width: 480px) {
+    .join-steps { grid-template-columns: 1fr; gap: 32px; }
+    nav { padding: 14px 16px; }
+    .nav-logo { font-size: 0.9rem; }
+    .hero-badge::before, .hero-badge::after { display: none; }
+  }
+
+  /* MARQUEE */
+  .ticker { overflow: hidden; border-top: 1px solid rgba(110,63,243,0.15); border-bottom: 1px solid rgba(110,63,243,0.15); padding: 14px 0; background: rgba(110,63,243,0.04); }
+  .ticker-inner { display: flex; white-space: nowrap; animation: ticker 25s linear infinite; }
+  .ticker-item { font-family: 'Share Tech Mono', monospace; font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); padding: 0 40px; }
+  .ticker-item span { color: var(--myst-bright); margin: 0 8px; }
+  @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+</style>
+</head>
+<body>
+
+<div id="cur"></div>
+<div id="cur-trail"></div>
+<canvas id="particles"></canvas>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">MYSTFIT</div>
+  <ul class="nav-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#ranks">Ranks</a></li>
+    <li><a href="#news">News</a></li>
+    <li><a href="#rules">Rules</a></li>
+    <li><a href="#team">Staff</a></li>
+    <li><a href="#chat">Chat</a></li>
+    <li><a href="#faq">FAQ</a></li>
+  <a href="#join" class="nav-join" id="navJoinBtn"><span>Play Now</span></a>
+  <button id="hamburger" onclick="toggleMenu()" style="
+    display:none; background:none;
+    border:1px solid rgba(110,63,243,0.4);
+    padding:8px 10px; cursor:pointer;
+    flex-direction:column; gap:5px; align-items:center; justify-content:center;
+  ">
+    <span style="display:block;width:22px;height:2px;background:var(--myst-glow);"></span>
+    <span style="display:block;width:22px;height:2px;background:var(--myst-glow);"></span>
+    <span style="display:block;width:22px;height:2px;background:var(--myst-glow);"></span>
+  </button>
+</nav>
+
+<!-- MOBILE MENU -->
+<div id="mobileMenu" style="
+  display:none; position:fixed; inset:0;
+  background:rgba(7,6,13,0.97); z-index:150;
+  flex-direction:column; align-items:center; justify-content:center; gap:28px;
+">
+  <button onclick="toggleMenu()" style="position:absolute;top:24px;right:20px;background:none;border:none;cursor:pointer;font-size:1.5rem;color:var(--myst-glow);">✕</button>
+  <a href="#features" onclick="toggleMenu()" style="font-family:'Cinzel',serif;font-size:1.4rem;color:var(--text);text-decoration:none;letter-spacing:0.1em;">Features</a>
+  <a href="#ranks" onclick="toggleMenu()" style="font-family:'Cinzel',serif;font-size:1.4rem;color:var(--text);text-decoration:none;letter-spacing:0.1em;">Ranks</a>
+  <a href="#news" onclick="toggleMenu()" style="font-family:'Cinzel',serif;font-size:1.4rem;color:var(--text);text-decoration:none;letter-spacing:0.1em;">News</a>
+  <a href="#rules" onclick="toggleMenu()" style="font-family:'Cinzel',serif;font-size:1.4rem;color:var(--text);text-decoration:none;letter-spacing:0.1em;">Rules</a>
+  <a href="#team" onclick="toggleMenu()" style="font-family:'Cinzel',serif;font-size:1.4rem;color:var(--text);text-decoration:none;letter-spacing:0.1em;">Staff</a>
+  <a href="#chat" onclick="toggleMenu()" style="font-family:'Cinzel',serif;font-size:1.4rem;color:var(--text);text-decoration:none;letter-spacing:0.1em;">Global Chat</a>
+  <a href="#faq" onclick="toggleMenu()" style="font-family:'Cinzel',serif;font-size:1.4rem;color:var(--text);text-decoration:none;letter-spacing:0.1em;">FAQ</a>
+  <a href="#join" onclick="toggleMenu()" style="font-family:'Share Tech Mono',monospace;font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;padding:16px 40px;background:linear-gradient(135deg,var(--myst),#4a1fb8);color:#fff;text-decoration:none;margin-top:8px;">Play Now</a>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+
+  <p class="hero-badge">⚔ Minecraft Java & Bedrock ⚔</p>
+
+  <h1 class="hero-title">
+    <span class="hero-title-main">MYSTFIT</span>
+    <span class="hero-title-shadow">MYSTFIT</span>
+  </h1>
+
+  <p class="hero-tagline">Survive. Trade. Conquer. Belong.</p>
+
+  <p class="hero-desc">
+    A semi-RPG survival economy server where every player carves their own legend. Build your empire, forge alliances, and rise through the ranks in a world shaped by its community.
+  </p>
+
+  <div class="hero-actions">
+    <a href="#join" class="btn-main">Join the Server</a>
+    <a href="#features" class="btn-outline">Explore Features</a>
+  </div>
+
+  <div class="ip-bar">
+    <div style="width:8px;height:8px;border-radius:50%;background:var(--myst-bright);box-shadow:0 0 8px var(--myst);animation:pulse-green 2s infinite;flex-shrink:0;"></div>
+    <span class="ip-label">Server IP</span>
+    <span class="ip-address" style="color:var(--dim);font-style:italic;letter-spacing:0.2em;">Coming Soon</span>
+  </div>
+
+  <div class="scroll-hint">
+    <span>Scroll</span>
+    <div class="scroll-line"></div>
+  </div>
+</section>
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker-inner">
+    <span class="ticker-item">Survival <span>✦</span></span>
+    <span class="ticker-item">Economy <span>✦</span></span>
+    <span class="ticker-item">Semi-RPG <span>✦</span></span>
+    <span class="ticker-item">Community <span>✦</span></span>
+    <span class="ticker-item">Custom Items <span>✦</span></span>
+    <span class="ticker-item">Player Shops <span>✦</span></span>
+    <span class="ticker-item">Classes & Skills <span>✦</span></span>
+    <span class="ticker-item">Quests <span>✦</span></span>
+    <span class="ticker-item">Factions <span>✦</span></span>
+    <span class="ticker-item">Events <span>✦</span></span>
+    <span class="ticker-item">Survival <span>✦</span></span>
+    <span class="ticker-item">Economy <span>✦</span></span>
+    <span class="ticker-item">Semi-RPG <span>✦</span></span>
+    <span class="ticker-item">Community <span>✦</span></span>
+    <span class="ticker-item">Custom Items <span>✦</span></span>
+    <span class="ticker-item">Player Shops <span>✦</span></span>
+    <span class="ticker-item">Classes & Skills <span>✦</span></span>
+    <span class="ticker-item">Quests <span>✦</span></span>
+    <span class="ticker-item">Factions <span>✦</span></span>
+    <span class="ticker-item">Events <span>✦</span></span>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="section reveal" id="features">
+  <div class="section-tag">Game Modes</div>
+  <h2 class="section-title">Everything you need to<br><em>build your legend</em></h2>
+  <p class="section-intro">Mystfit blends the best of survival, economy, and RPG progression into one seamless world.</p>
+
+  <div class="features-grid">
+    <div class="feature-card">
+      <span class="feature-icon"><span aria-label="Sword" role="img">⚔️</span></span>
+      <h3 class="feature-name">Semi-RPG Classes</h3>
+      <p class="feature-desc">Choose your path — Warrior, Merchant, Mage, or Ranger. Each class unlocks unique abilities and passive skills as you level up.</p>
+      <span class="feature-tag">Coming Soon</span>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon"><span aria-label="Money bag" role="img">💰</span></span>
+      <h3 class="feature-name">Player Economy</h3>
+      <p class="feature-desc">Open your own shop, trade resources, auction rare items, and dominate the market. Every diamond has a price — what's yours?</p>
+      <span class="feature-tag">Core Feature</span>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">🏠</span>
+      <h3 class="feature-name">Land Claims</h3>
+      <p class="feature-desc">Protect your base, your farm, your empire. Claim land, set permissions, and invite trusted players to build with you.</p>
+      <span class="feature-tag">Core Feature</span>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">🗺️</span>
+      <h3 class="feature-name">Quests & Lore</h3>
+      <p class="feature-desc">Embark on handcrafted quests woven into the world's lore. Uncover the mystery of Mystfit's origins and claim legendary rewards.</p>
+      <span class="feature-tag">Coming Soon</span>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">🏆</span>
+      <h3 class="feature-name">Seasonal Events</h3>
+      <p class="feature-desc">Compete in community-wide events, PvP tournaments, build contests, and treasure hunts with exclusive prizes up for grabs.</p>
+      <span class="feature-tag">Planned</span>
+    </div>
+    <div class="feature-card">
+      <span class="feature-icon">🤝</span>
+      <h3 class="feature-name">Community First</h3>
+      <p class="feature-desc">Built by players, for players. Your feedback shapes the server. Active Discord, community votes, and staff who actually listen.</p>
+      <span class="feature-tag">Always On</span>
+    </div>
+  </div>
+</section>
+
+<div class="rune-divider"><span>✦ ✦ ✦</span></div>
+
+<!-- ABOUT -->
+<section class="section about-section reveal" id="about">
+  <div class="section-tag">Our Story</div>
+  <div class="about-grid">
+    <div class="about-text">
+      <h2 class="section-title">A world being<br><em>built together</em></h2>
+      <p>Mystfit isn't just a server — it's a vision. We're building a place where survival Minecraft meets meaningful progression, where your grind actually means something, and where the community shapes the world around them.</p>
+      <p>We're just getting started. The server is being crafted with care, and <strong>you can be one of the founding members</strong> who helped shape what Mystfit becomes. Early joiners get special recognition — forever.</p>
+      <p>A <strong>fun and thriving world</strong> for everyone who calls it home.</p>
+      <div class="about-values">
+
+        <div class="value-row">
+          <span class="value-icon"><span aria-label="Globe" role="img">🌍</span></span>
+          <span class="value-text">Community Driven</span>
+        </div>
+        <div class="value-row">
+          <span class="value-icon">⚡</span>
+          <span class="value-text">Regular Updates</span>
+        </div>
+        <div class="value-row">
+          <span class="value-icon">💬</span>
+          <span class="value-text">Active Staff Team</span>
+        </div>
+      </div>
+    </div>
+    <div class="about-visual">
+      <div class="orb orb-ring orb-ring-3"></div>
+      <div class="orb orb-ring orb-ring-2"></div>
+      <div class="orb orb-ring orb-ring-1"></div>
+      <div class="orb orb-main"><span aria-label="Milky way" role="img">🌌</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- RULES -->
+<section class="section rules-section reveal" id="rules">
+  <div class="section-tag">The Code</div>
+  <h2 class="section-title">Community <em>Rules</em></h2>
+  <p class="section-intro">A great server needs great people. These rules keep Mystfit a place everyone can enjoy.</p>
+
+  <div class="rules-grid">
+    <div class="rule-item">
+      <div class="rule-num">01</div>
+      <div class="rule-body">
+        <h4 class="rule-title">Respect Everyone</h4>
+        <p class="rule-desc">Treat all players with respect. No harassment, hate speech, or toxic behaviour. We're all here to have fun.</p>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">02</div>
+      <div class="rule-body">
+        <h4 class="rule-title">No Cheating or Hacking</h4>
+        <p class="rule-desc">No hacked clients, x-ray, duplication exploits, or unfair advantages. Play fair, earn your wins.</p>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">03</div>
+      <div class="rule-body">
+        <h4 class="rule-title">No Griefing</h4>
+        <p class="rule-desc">Don't destroy, steal from, or sabotage other players' builds. Unclaimed land doesn't mean free to grief.</p>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">04</div>
+      <div class="rule-body">
+        <h4 class="rule-title">Keep Chat Clean</h4>
+        <p class="rule-desc">No spamming, excessive caps, NSFW content, or advertising other servers in chat.</p>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">05</div>
+      <div class="rule-body">
+        <h4 class="rule-title">No Scamming</h4>
+        <p class="rule-desc">Trades must be honoured. Scamming players out of items or money will result in permanent removal.</p>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">06</div>
+      <div class="rule-body">
+        <h4 class="rule-title">Listen to Staff</h4>
+        <p class="rule-desc">Staff decisions are final in-game. Disputes can be raised in our Discord. Don't argue in public chat.</p>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">07</div>
+      <div class="rule-body">
+        <h4 class="rule-title">No Unnecessary Staff Pings</h4>
+        <p class="rule-desc">Do not ping staff members for no reason. If you ping a staff member without a valid reason, you will be muted for <strong style="color:var(--myst-glow)">3 days</strong>. Use the proper channels for support.</p>
+      </div>
+    </div>
+    <div class="rule-item">
+      <div class="rule-num">08</div>
+      <div class="rule-body">
+        <h4 class="rule-title">No Compensation on Purchases</h4>
+        <p class="rule-desc">All purchases of ranks, perks, or store items are <strong style="color:var(--myst-glow)">final and non-refundable</strong>. No compensation will be given for lost items, resets, or server changes. Buy at your own discretion.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW TO JOIN -->
+<section class="section reveal" id="join">
+  <div class="section-tag">Get Started</div>
+  <h2 class="section-title">How to <em>Join Mystfit</em></h2>
+  <p class="section-intro">Joining takes less than a minute. Your adventure starts the moment you log in.</p>
+
+  <div class="join-steps">
+    <div class="join-step">
+      <div class="step-circle">
+        🎮
+        <span class="step-circle-num">1</span>
+      </div>
+      <h4 class="join-step-title">Get Minecraft</h4>
+      <p class="join-step-desc">You need Minecraft Java or Bedrock Edition. Both are supported on Mystfit.</p>
+    </div>
+    <div class="join-step">
+      <div class="step-circle">
+        📋
+        <span class="step-circle-num">2</span>
+      </div>
+      <h4 class="join-step-title">Get the IP</h4>
+      <p class="join-step-desc">The server IP will be announced soon. Join our Discord to be the first to know when we go live!</p>
+    </div>
+    <div class="join-step">
+      <div class="step-circle">
+        💬
+        <span class="step-circle-num">3</span>
+      </div>
+      <h4 class="join-step-title">Join Discord</h4>
+      <p class="join-step-desc">Hop into our Discord for announcements, events, and connecting with the community. <a href="https://discord.gg/mqCBgrvesg" target="_blank" style="color:var(--myst-glow);text-decoration:none;">Click here to join →</a></p>
+    </div>
+    <div class="join-step">
+      <div class="step-circle">
+        <span aria-label="Sword" role="img">⚔️</span>
+        <span class="step-circle-num">4</span>
+      </div>
+      <h4 class="join-step-title">Start Playing</h4>
+      <p class="join-step-desc">Log in, explore spawn, pick your path, and begin writing your legend in Mystfit.</p>
+    </div>
+  </div>
+</section>
+
+<!-- TEAM -->
+<section class="section reveal" id="team" style="background: var(--deep);">
+  <div class="section-tag">The Staff</div>
+  <h2 class="section-title">Meet the <em>Team</em></h2>
+  <p class="section-intro">The people behind Mystfit who keep the world running.</p>
+
+  <div style="display: flex; justify-content: center; margin-top: 60px;">
+    <div style="
+      background: var(--shadow);
+      border: 1px solid rgba(110,63,243,0.25);
+      padding: 56px 64px;
+      text-align: center;
+      max-width: 380px;
+      width: 100%;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    " onmouseenter="this.style.borderColor='rgba(110,63,243,0.6)'; this.style.boxShadow='0 0 40px rgba(110,63,243,0.2)'"
+       onmouseleave="this.style.borderColor='rgba(110,63,243,0.25)'; this.style.boxShadow='none'">
+      <!-- glow top bar -->
+      <div style="position:absolute; top:0; left:0; right:0; height:2px; background: linear-gradient(to right, transparent, var(--myst), transparent);"></div>
+
+      <!-- avatar -->
+      <div style="
+        width: 100px; height: 100px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 35%, #7a4ff5, #2a0f6e);
+        border: 2px solid rgba(110,63,243,0.5);
+        box-shadow: 0 0 30px rgba(110,63,243,0.35);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 2.8rem;
+        margin: 0 auto 28px;
+      "><span aria-label="Crown" role="img">👑</span></div>
+
+      <!-- name -->
+      <h3 style="
+        font-family: 'Cinzel', serif;
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 10px;
+        letter-spacing: 0.05em;
+      ">Jellou Yukimura</h3>
+
+      <!-- badges -->
+      <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 24px;">
+        <span style="
+          font-family: 'Share Tech Mono', monospace;
+          font-size: 0.55rem; letter-spacing: 0.2em; text-transform: uppercase;
+          padding: 5px 14px;
+          background: rgba(240,192,64,0.12);
+          border: 1px solid rgba(240,192,64,0.4);
+          color: var(--gold);
+        ">Owner</span>
+        <span style="
+          font-family: 'Share Tech Mono', monospace;
+          font-size: 0.55rem; letter-spacing: 0.2em; text-transform: uppercase;
+          padding: 5px 14px;
+          background: rgba(110,63,243,0.15);
+          border: 1px solid rgba(110,63,243,0.4);
+          color: var(--myst-glow);
+        ">Developer</span>
+      </div>
+
+      <p style="font-size: 0.95rem; line-height: 1.7; color: var(--dim); font-weight: 300; font-style: italic;">
+        Founder of Mystfit. Building the server from the ground up — every block, every plugin, every rule. The vision starts here.
+      </p>
+
+      <div style="
+        margin-top: 28px;
+        padding-top: 24px;
+        border-top: 1px solid rgba(110,63,243,0.15);
+        font-family: 'Share Tech Mono', monospace;
+        font-size: 0.55rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: rgba(110,63,243,0.5);
+      ">⚡ Founder Member · Est. 2025</div>
+    </div>
+  </div>
+
+  <p style="text-align:center; margin-top: 48px; font-family: 'Share Tech Mono', monospace; font-size: 0.6rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--dim);">
+    More staff slots opening soon — <span style="color: var(--myst-bright);">applications will be announced in Discord</span>
+  </p>
+</section>
+
+<!-- RANKS & STORE -->
+<section class="section reveal" id="ranks">
+  <div class="section-tag">Store</div>
+  <h2 class="section-title">Ranks &amp; <em>Perks</em></h2>
+  <p class="section-intro">Support Mystfit and unlock exclusive perks. Every rank includes all perks from ranks below it. DM Jellou on Discord to purchase.</p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:2px;margin-top:60px;">
+
+    <!-- VIP -->
+    <div style="background:var(--deep);padding:30px 16px;border:1px solid rgba(74,222,128,0.2);text-align:center;position:relative;overflow:hidden;transition:transform 0.3s,box-shadow 0.3s;" onmouseenter="this.style.transform='translateY(-6px)';this.style.boxShadow='0 16px 40px rgba(74,222,128,0.15)'" onmouseleave="this.style.transform='';this.style.boxShadow=''">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(to right,#22c55e,#86efac,#22c55e);"></div>
+      <div style="font-size:1.6rem;margin-bottom:10px;"><span aria-label="Star" role="img">⭐</span></div>
+      <div style="font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;color:#86efac;margin-bottom:5px;">VIP</div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:1.3rem;color:var(--text);margin-bottom:14px;">$2<span style="font-size:0.55rem;color:var(--dim)">/mo</span></div>
+      <ul style="list-style:none;text-align:left;font-size:0.74rem;color:var(--dim);line-height:2;font-weight:300;">
+        <li>✦ [VIP] chat tag</li>
+        <li>✦ 3 homes</li>
+        <li>✦ Color in chat</li>
+        <li>✦ /kit vip</li>
+      </ul>
+      <a href="https://discord.gg/mqCBgrvesg" target="_blank" style="display:block;margin-top:14px;font-family:'Share Tech Mono',monospace;font-size:0.45rem;letter-spacing:0.12em;padding:8px;border:1px solid rgba(74,222,128,0.3);color:#86efac;text-transform:uppercase;text-decoration:none;transition:background 0.2s;" onmouseenter="this.style.background='rgba(74,222,128,0.1)'" onmouseleave="this.style.background=''">Buy on Discord</a>
+    </div>
+
+    <!-- VIP+ -->
+    <div style="background:var(--deep);padding:30px 16px;border:1px solid rgba(34,197,94,0.25);text-align:center;position:relative;overflow:hidden;transition:transform 0.3s,box-shadow 0.3s;" onmouseenter="this.style.transform='translateY(-6px)';this.style.boxShadow='0 16px 40px rgba(34,197,94,0.2)'" onmouseleave="this.style.transform='';this.style.boxShadow=''">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(to right,#16a34a,#4ade80,#16a34a);"></div>
+      <div style="font-size:1.6rem;margin-bottom:10px;"><span aria-label="Glowing star" role="img">🌟</span></div>
+      <div style="font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;color:#4ade80;margin-bottom:5px;">VIP+</div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:1.3rem;color:var(--text);margin-bottom:14px;">$3<span style="font-size:0.55rem;color:var(--dim)">/mo</span></div>
+      <ul style="list-style:none;text-align:left;font-size:0.74rem;color:var(--dim);line-height:2;font-weight:300;">
+        <li>✦ Everything in VIP</li>
+        <li>✦ 5 homes</li>
+        <li>✦ /fly in spawn</li>
+        <li>✦ /nick command</li>
+      </ul>
+      <a href="https://discord.gg/mqCBgrvesg" target="_blank" style="display:block;margin-top:14px;font-family:'Share Tech Mono',monospace;font-size:0.45rem;letter-spacing:0.12em;padding:8px;border:1px solid rgba(34,197,94,0.35);color:#4ade80;text-transform:uppercase;text-decoration:none;transition:background 0.2s;" onmouseenter="this.style.background='rgba(34,197,94,0.1)'" onmouseleave="this.style.background=''">Buy on Discord</a>
+    </div>
+
+    <!-- MVP -->
+    <div style="background:var(--deep);padding:30px 16px;border:1px solid rgba(96,165,250,0.2);text-align:center;position:relative;overflow:hidden;transition:transform 0.3s,box-shadow 0.3s;" onmouseenter="this.style.transform='translateY(-6px)';this.style.boxShadow='0 16px 40px rgba(96,165,250,0.2)'" onmouseleave="this.style.transform='';this.style.boxShadow=''">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(to right,#3b82f6,#93c5fd,#3b82f6);"></div>
+      <div style="font-size:1.6rem;margin-bottom:10px;"><span aria-label="Diamond" role="img">💎</span></div>
+      <div style="font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;color:#93c5fd;margin-bottom:5px;">MVP</div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:1.3rem;color:var(--text);margin-bottom:14px;">$5<span style="font-size:0.55rem;color:var(--dim)">/mo</span></div>
+      <ul style="list-style:none;text-align:left;font-size:0.74rem;color:var(--dim);line-height:2;font-weight:300;">
+        <li>✦ Everything in VIP+</li>
+        <li>✦ 10 homes</li>
+        <li>✦ /fly everywhere</li>
+        <li>✦ Exclusive MVP kit</li>
+      </ul>
+      <a href="https://discord.gg/mqCBgrvesg" target="_blank" style="display:block;margin-top:14px;font-family:'Share Tech Mono',monospace;font-size:0.45rem;letter-spacing:0.12em;padding:8px;border:1px solid rgba(96,165,250,0.3);color:#93c5fd;text-transform:uppercase;text-decoration:none;transition:background 0.2s;" onmouseenter="this.style.background='rgba(96,165,250,0.1)'" onmouseleave="this.style.background=''">Buy on Discord</a>
+    </div>
+
+    <!-- MVP+ -->
+    <div style="background:var(--deep);padding:30px 16px;border:1px solid rgba(251,191,36,0.25);text-align:center;position:relative;overflow:hidden;transition:transform 0.3s,box-shadow 0.3s;" onmouseenter="this.style.transform='translateY(-6px)';this.style.boxShadow='0 16px 40px rgba(251,191,36,0.2)'" onmouseleave="this.style.transform='';this.style.boxShadow=''">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(to right,#d97706,#fde68a,#d97706);"></div>
+      <div style="position:absolute;top:10px;right:10px;font-family:'Share Tech Mono',monospace;font-size:0.4rem;background:var(--gold);color:var(--void);padding:3px 6px;text-transform:uppercase;letter-spacing:0.1em;">Popular</div>
+      <div style="font-size:1.6rem;margin-bottom:10px;"><span aria-label="Crown" role="img">👑</span></div>
+      <div style="font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;color:var(--gold);margin-bottom:5px;">MVP+</div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:1.3rem;color:var(--text);margin-bottom:14px;">$8<span style="font-size:0.55rem;color:var(--dim)">/mo</span></div>
+      <ul style="list-style:none;text-align:left;font-size:0.74rem;color:var(--dim);line-height:2;font-weight:300;">
+        <li>✦ Everything in MVP</li>
+        <li>✦ Unlimited homes</li>
+        <li>✦ Custom join message</li>
+        <li>✦ Weekly crate key</li>
+      </ul>
+      <a href="https://discord.gg/mqCBgrvesg" target="_blank" style="display:block;margin-top:14px;font-family:'Share Tech Mono',monospace;font-size:0.45rem;letter-spacing:0.12em;padding:8px;border:1px solid rgba(251,191,36,0.4);color:var(--gold);text-transform:uppercase;text-decoration:none;transition:background 0.2s;" onmouseenter="this.style.background='rgba(251,191,36,0.08)'" onmouseleave="this.style.background=''">Buy on Discord</a>
+    </div>
+
+    <!-- LEGEND -->
+    <div style="background:linear-gradient(160deg,#1a0530,#0d0b1a);padding:30px 16px;border:1px solid rgba(255,107,43,0.3);text-align:center;position:relative;overflow:hidden;transition:transform 0.3s,box-shadow 0.3s;" onmouseenter="this.style.transform='translateY(-6px)';this.style.boxShadow='0 16px 60px rgba(255,107,43,0.2)'" onmouseleave="this.style.transform='';this.style.boxShadow=''">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(to right,#ea580c,#fb923c,#ea580c);"></div>
+      <div style="font-size:1.6rem;margin-bottom:10px;">🔥</div>
+      <div style="font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;color:#fb923c;margin-bottom:5px;">Legend</div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:1.3rem;color:var(--text);margin-bottom:14px;">$12<span style="font-size:0.55rem;color:var(--dim)">/mo</span></div>
+      <ul style="list-style:none;text-align:left;font-size:0.74rem;color:var(--dim);line-height:2;font-weight:300;">
+        <li>✦ Everything in MVP+</li>
+        <li>✦ Custom particles</li>
+        <li>✦ Priority queue</li>
+        <li>✦ Legend Discord role</li>
+      </ul>
+      <a href="https://discord.gg/mqCBgrvesg" target="_blank" style="display:block;margin-top:14px;font-family:'Share Tech Mono',monospace;font-size:0.45rem;letter-spacing:0.12em;padding:8px;border:1px solid rgba(255,107,43,0.4);color:#fb923c;text-transform:uppercase;text-decoration:none;transition:background 0.2s;" onmouseenter="this.style.background='rgba(255,107,43,0.1)'" onmouseleave="this.style.background=''">Buy on Discord</a>
+    </div>
+
+    <!-- MYTHIC -->
+    <div style="background:linear-gradient(160deg,#1a0530,#0d0b1a);padding:30px 16px;border:1px solid rgba(180,60,255,0.35);text-align:center;position:relative;overflow:hidden;transition:transform 0.3s,box-shadow 0.3s;" onmouseenter="this.style.transform='translateY(-6px)';this.style.boxShadow='0 16px 60px rgba(180,60,255,0.3)'" onmouseleave="this.style.transform='';this.style.boxShadow=''">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(to right,#b43cff,#ff6bff,#b43cff);"></div>
+      <div style="position:absolute;top:10px;right:10px;font-family:'Share Tech Mono',monospace;font-size:0.4rem;background:linear-gradient(135deg,#b43cff,#6e3ff3);color:#fff;padding:3px 6px;text-transform:uppercase;letter-spacing:0.1em;">Elite</div>
+      <div style="font-size:1.6rem;margin-bottom:10px;"><span aria-label="Milky way" role="img">🌌</span></div>
+      <div style="font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;background:linear-gradient(135deg,#ff6bff,#b43cff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:5px;">Mythic</div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:1.3rem;color:var(--text);margin-bottom:14px;">$20<span style="font-size:0.55rem;color:var(--dim)">/mo</span></div>
+      <ul style="list-style:none;text-align:left;font-size:0.74rem;color:var(--dim);line-height:2;font-weight:300;">
+        <li>✦ ALL perks included</li>
+        <li>✦ Exclusive Mythic title</li>
+        <li>✦ Custom chat color</li>
+        <li>✦ Daily crate key</li>
+        <li>✦ Mythic Discord role</li>
+      </ul>
+      <a href="https://discord.gg/mqCBgrvesg" target="_blank" style="display:block;margin-top:14px;font-family:'Share Tech Mono',monospace;font-size:0.45rem;letter-spacing:0.12em;padding:8px;border:1px solid rgba(180,60,255,0.4);color:#d480ff;text-transform:uppercase;text-decoration:none;transition:background 0.2s;" onmouseenter="this.style.background='rgba(180,60,255,0.1)'" onmouseleave="this.style.background=''">Buy on Discord</a>
+    </div>
+
+  </div>
+  <p style="margin-top:20px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:0.48rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--dim);">All purchases are final · No compensation · DM Jellou on <a href="https://discord.gg/mqCBgrvesg" target="_blank" style="color:var(--myst-bright);text-decoration:none;">Discord</a> to purchase</p>
+</section>
+
+<div class="rune-divider"><span>&#10022; &#10022; &#10022;</span></div>
+
+<!-- ANNOUNCEMENTS -->
+<section class="section reveal" id="news" style="background:var(--deep);">
+  <div class="section-tag">Updates</div>
+  <h2 class="section-title">Announcements &amp; <em>News</em></h2>
+  <p class="section-intro">Stay up to date with everything happening in the Mystfit world.</p>
+  <div style="display:flex;flex-direction:column;gap:2px;margin-top:48px;">
+    <div style="background:var(--shadow);border:1px solid rgba(110,63,243,0.15);padding:28px 28px;display:flex;gap:20px;align-items:flex-start;transition:border-color 0.3s;" onmouseenter="this.style.borderColor='rgba(110,63,243,0.4)'" onmouseleave="this.style.borderColor='rgba(110,63,243,0.15)'">
+      <div style="flex-shrink:0;text-align:center;min-width:52px;"><div style="font-family:'Cinzel Decorative',serif;font-size:1.3rem;font-weight:900;color:var(--myst-bright);line-height:1;">25</div><div style="font-family:'Share Tech Mono',monospace;font-size:0.45rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--dim);">Feb 2025</div></div>
+      <div><span style="font-family:'Share Tech Mono',monospace;font-size:0.48rem;letter-spacing:0.2em;text-transform:uppercase;padding:3px 10px;background:rgba(110,63,243,0.2);border:1px solid rgba(110,63,243,0.4);color:var(--myst-bright);display:inline-block;margin-bottom:8px;">Announcement</span>
+      <h4 style="font-family:'Cinzel',serif;font-size:1.05rem;font-weight:700;margin-bottom:8px;">&#127881; Mystfit Website is Live!</h4>
+      <p style="font-size:0.9rem;line-height:1.7;color:var(--dim);font-weight:300;">Our official website is now online! We're working hard behind the scenes to get the server ready for launch. Follow our Discord for live updates and be first to know when we open.</p></div>
+    </div>
+    <div style="background:var(--shadow);border:1px solid rgba(110,63,243,0.15);padding:28px 28px;display:flex;gap:20px;align-items:flex-start;transition:border-color 0.3s;" onmouseenter="this.style.borderColor='rgba(110,63,243,0.4)'" onmouseleave="this.style.borderColor='rgba(110,63,243,0.15)'">
+      <div style="flex-shrink:0;text-align:center;min-width:52px;"><div style="font-family:'Cinzel Decorative',serif;font-size:1.3rem;font-weight:900;color:var(--myst-bright);line-height:1;">TBA</div><div style="font-family:'Share Tech Mono',monospace;font-size:0.45rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--dim);">Soon</div></div>
+      <div><span style="font-family:'Share Tech Mono',monospace;font-size:0.48rem;letter-spacing:0.2em;text-transform:uppercase;padding:3px 10px;background:rgba(240,192,64,0.1);border:1px solid rgba(240,192,64,0.3);color:var(--gold);display:inline-block;margin-bottom:8px;">Launch</span>
+      <h4 style="font-family:'Cinzel',serif;font-size:1.05rem;font-weight:700;margin-bottom:8px;">&#128640; Server Launch Date &#8212; TBA</h4>
+      <p style="font-size:0.9rem;line-height:1.7;color:var(--dim);font-weight:300;">The server launch date is coming soon. We'll announce it in Discord first &#8212; make sure you're in there. Founding members get special in-game recognition forever.</p></div>
+    </div>
+    <div style="background:var(--shadow);border:1px solid rgba(110,63,243,0.15);padding:28px 28px;display:flex;gap:20px;align-items:flex-start;transition:border-color 0.3s;" onmouseenter="this.style.borderColor='rgba(110,63,243,0.4)'" onmouseleave="this.style.borderColor='rgba(110,63,243,0.15)'">
+      <div style="flex-shrink:0;text-align:center;min-width:52px;"><div style="font-family:'Cinzel Decorative',serif;font-size:1.3rem;font-weight:900;color:var(--myst-bright);line-height:1;">TBA</div><div style="font-family:'Share Tech Mono',monospace;font-size:0.45rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--dim);">Soon</div></div>
+      <div><span style="font-family:'Share Tech Mono',monospace;font-size:0.48rem;letter-spacing:0.2em;text-transform:uppercase;padding:3px 10px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);color:#4ade80;display:inline-block;margin-bottom:8px;">Staff</span>
+      <h4 style="font-family:'Cinzel',serif;font-size:1.05rem;font-weight:700;margin-bottom:8px;">&#128203; Staff Applications Opening Soon</h4>
+      <p style="font-size:0.9rem;line-height:1.7;color:var(--dim);font-weight:300;">We'll be opening staff applications before launch. Use the application section below when ready. Jellou reviews every single one personally.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- LEADERBOARD -->
+<section class="section reveal" id="leaderboard" style="background:var(--void);">
+  <div class="section-tag">Hall of Fame</div>
+  <h2 class="section-title">Top <em>Players</em></h2>
+  <p class="section-intro">The legends of Mystfit. Rankings go live when the server launches.</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-top:48px;">
+    <div style="background:var(--deep);border:1px solid rgba(110,63,243,0.15);padding:32px;">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:0.55rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--gold);margin-bottom:24px;">&#127942; Richest Players</div>
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <div style="display:flex;align-items:center;gap:14px;padding:13px 14px;background:rgba(240,192,64,0.06);border-left:3px solid var(--gold);"><span style="font-family:'Cinzel Decorative',serif;font-size:1rem;color:var(--gold);width:24px;">1</span><span style="flex:1;font-family:'Cinzel',serif;font-size:0.85rem;color:var(--dim);font-style:italic;">&#8212; Server Not Open Yet &#8212;</span></div>
+        <div style="display:flex;align-items:center;gap:14px;padding:13px 14px;background:rgba(192,192,192,0.04);border-left:3px solid #a0a0a0;"><span style="font-family:'Cinzel Decorative',serif;font-size:1rem;color:#c0c0c0;width:24px;">2</span><span style="flex:1;font-family:'Cinzel',serif;font-size:0.85rem;color:var(--dim);font-style:italic;">&#8212; Be the first to claim this &#8212;</span></div>
+        <div style="display:flex;align-items:center;gap:14px;padding:13px 14px;background:rgba(139,90,26,0.04);border-left:3px solid #8b5a1a;"><span style="font-family:'Cinzel Decorative',serif;font-size:1rem;color:#c8783a;width:24px;">3</span><span style="flex:1;font-family:'Cinzel',serif;font-size:0.85rem;color:var(--dim);font-style:italic;">&#8212; Your name could be here &#8212;</span></div>
+      </div>
+    </div>
+    <div style="background:var(--deep);border:1px solid rgba(110,63,243,0.15);padding:32px;">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:0.55rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--myst-bright);margin-bottom:24px;">&#9876; Top Fighters</div>
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <div style="display:flex;align-items:center;gap:14px;padding:13px 14px;background:rgba(240,192,64,0.06);border-left:3px solid var(--gold);"><span style="font-family:'Cinzel Decorative',serif;font-size:1rem;color:var(--gold);width:24px;">1</span><span style="flex:1;font-family:'Cinzel',serif;font-size:0.85rem;color:var(--dim);font-style:italic;">&#8212; Server Not Open Yet &#8212;</span></div>
+        <div style="display:flex;align-items:center;gap:14px;padding:13px 14px;background:rgba(192,192,192,0.04);border-left:3px solid #a0a0a0;"><span style="font-family:'Cinzel Decorative',serif;font-size:1rem;color:#c0c0c0;width:24px;">2</span><span style="flex:1;font-family:'Cinzel',serif;font-size:0.85rem;color:var(--dim);font-style:italic;">&#8212; Be the first to claim this &#8212;</span></div>
+        <div style="display:flex;align-items:center;gap:14px;padding:13px 14px;background:rgba(139,90,26,0.04);border-left:3px solid #8b5a1a;"><span style="font-family:'Cinzel Decorative',serif;font-size:1rem;color:#c8783a;width:24px;">3</span><span style="flex:1;font-family:'Cinzel',serif;font-size:0.85rem;color:var(--dim);font-style:italic;">&#8212; Your name could be here &#8212;</span></div>
+      </div>
+    </div>
+  </div>
+  <p style="margin-top:20px;font-family:'Share Tech Mono',monospace;font-size:0.5rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--dim);text-align:center;">Leaderboards activate on server launch &#183; Updated daily</p>
+</section>
+
+<!-- GLOBAL CHAT -->
+<section class="section reveal" id="chat" style="background:var(--shadow);">
+  <div class="section-tag">Community</div>
+  <h2 class="section-title">Global <em>Chat</em></h2>
+  <p class="section-intro">Talk to the Mystfit community right here — from anywhere in the world. <span aria-label="Globe" role="img">🌍</span></p>
+  <div style="max-width:680px;margin-top:48px;">
+    <div id="chatSetup" style="background:var(--deep);border:1px solid rgba(240,192,64,0.25);padding:24px 28px;margin-bottom:4px;display:flex;align-items:flex-start;gap:16px;">
+      <span style="font-size:1.4rem;flex-shrink:0;">⚙️</span>
+      <div>
+        <div style="font-family:'Cinzel',serif;font-size:0.95rem;font-weight:700;color:var(--gold);margin-bottom:8px;">One-time Setup Required</div>
+        <p style="font-size:0.85rem;line-height:1.7;color:var(--dim);font-weight:300;margin-bottom:12px;">To enable live global chat, you need a free Firebase project. It takes 2 minutes:</p>
+        <ol style="font-size:0.82rem;line-height:2;color:var(--silver);font-weight:300;padding-left:18px;">
+          <li>Go to <strong style="color:var(--myst-glow)">console.firebase.google.com</strong> → Create a project (name it "mystfit")</li>
+          <li>Click <strong style="color:var(--myst-glow)">Realtime Database</strong> → Create database → Start in <strong>test mode</strong></li>
+          <li>Click the ⚙️ gear → <strong>Project settings</strong> → scroll to "Your apps" → Add Web app</li>
+          <li>Copy your <strong style="color:var(--myst-glow)">databaseURL</strong> (looks like: <code style="color:var(--ember);font-size:0.75rem;">https://mystfit-xxxxx-default-rtdb.firebaseio.com</code>)</li>
+          <li>Paste it below and click Save 👇</li>
+        </ol>
+        <div style="display:flex;gap:0;margin-top:16px;">
+          <input id="fbUrlInput" type="text" placeholder="https://mystfit-xxxxx-default-rtdb.firebaseio.com" style="flex:1;background:var(--shadow);border:1px solid rgba(240,192,64,0.3);border-right:none;padding:11px 14px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:0.65rem;outline:none;" />
+          <button onclick="saveFirebaseUrl()" style="background:var(--gold);border:none;padding:11px 18px;color:var(--void);font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-weight:700;">Save</button>
+        </div>
+      </div>
+    </div>
+    <div id="chatBox" style="background:var(--deep);border:1px solid rgba(110,63,243,0.2);height:320px;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;">
+      <div id="chatWelcome" style="text-align:center;font-family:'Share Tech Mono',monospace;font-size:0.5rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--dim);padding:20px 0;">— Configure Firebase above to enable live chat —</div>
+    </div>
+    <!-- Name claim box — shown only when visitor has no locked IGN yet -->
+    <div id="chatIdentitySetup" style="display:none;gap:0;margin-top:2px;">
+      <div style="background:rgba(110,63,243,0.08);border:1px solid rgba(155,111,255,0.3);padding:10px 14px;font-family:'Share Tech Mono',monospace;font-size:0.5rem;letter-spacing:0.1em;color:var(--myst-bright);margin-bottom:2px;">🔒 Claim your IGN — once set, only you can use this name in chat</div>
+      <div style="display:flex;gap:0;">
+        <input id="chatNameClaim" type="text" placeholder="Enter your Minecraft IGN..." maxlength="20"
+          style="flex:1;background:var(--deep);border:1px solid rgba(110,63,243,0.3);border-right:none;padding:12px 14px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:0.68rem;outline:none;"
+          onkeydown="if(event.key==='Enter')claimChatName()" />
+        <button onclick="claimChatName()" style="background:var(--myst);border:none;padding:12px 18px;color:#fff;font-family:'Share Tech Mono',monospace;font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;white-space:nowrap;">Claim ✦</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:0;margin-top:2px;">
+      <div id="chatNameDisplay" style="width:140px;background:var(--deep);border:1px solid rgba(110,63,243,0.2);border-right:none;padding:13px 14px;color:var(--myst-glow);font-family:'Share Tech Mono',monospace;font-size:0.6rem;display:flex;align-items:center;gap:5px;overflow:hidden;white-space:nowrap;" title="Your locked IGN">
+        <span style="opacity:0.5;flex-shrink:0;">🔒</span>
+        <span id="chatNameLabel">—</span>
+      </div>
+      <input id="chatMsg" type="text" placeholder="Say something to the world..." maxlength="200" style="flex:1;background:var(--deep);border:1px solid rgba(110,63,243,0.2);border-right:none;padding:13px 14px;color:var(--text);font-family:'Crimson Pro',serif;font-size:0.95rem;outline:none;" onkeydown="if(event.key==='Enter')sendChat()" />
+      <button onclick="sendChat()" style="background:var(--myst);border:none;padding:13px 18px;color:#fff;font-family:'Share Tech Mono',monospace;font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:background 0.2s;white-space:nowrap;" onmouseenter="this.style.background='#8a55ff'" onmouseleave="this.style.background='var(--myst)'">Send ✦</button>
+    </div>
+    <p style="margin-top:8px;font-family:'Share Tech Mono',monospace;font-size:0.45rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--dim);">🔒 Identity-locked · Your IGN is tied to your browser · Admins can see your unique ID</p>
+  </div>
+</section>
+
+<!-- STAFF APPLICATION -->
+<section class="section reveal" id="apply" style="background:var(--deep);">
+  <div class="section-tag">Join the Team</div>
+  <h2 class="section-title">Apply for <em>Staff</em></h2>
+  <p class="section-intro">Think you have what it takes? Fill in the form below. Jellou reviews every application personally.</p>
+  <div style="max-width:620px;margin-top:48px;">
+
+    <!-- SETUP BOX -->
+    <div id="emailSetup" style="background:var(--shadow);border:1px solid rgba(240,192,64,0.25);padding:22px 24px;margin-bottom:4px;display:flex;gap:14px;align-items:flex-start;">
+      <span style="font-size:1.3rem;flex-shrink:0;">⚙️</span>
+      <div style="width:100%;">
+        <div style="font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;color:var(--gold);margin-bottom:8px;">One-time Email Setup</div>
+        <p style="font-size:0.8rem;color:var(--dim);line-height:1.7;margin-bottom:10px;font-weight:300;">Paste your EmailJS keys below so decisions get emailed to applicants.</p>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <input id="ejs_pubkey" type="text" placeholder="Public Key" style="width:100%;background:var(--deep);border:1px solid rgba(240,192,64,0.3);padding:10px 12px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:0.62rem;outline:none;" />
+          <input id="ejs_service" type="text" placeholder="Service ID (e.g. service_xxxxxx)" style="width:100%;background:var(--deep);border:1px solid rgba(240,192,64,0.3);padding:10px 12px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:0.62rem;outline:none;" />
+          <div style="display:flex;gap:4px;">
+            <input id="ejs_template" type="text" placeholder="Template ID for decisions (e.g. template_xxxxxx)" style="flex:1;background:var(--deep);border:1px solid rgba(240,192,64,0.3);padding:10px 12px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:0.62rem;outline:none;" />
+            <button onclick="saveEmailJS()" style="background:var(--gold);border:none;padding:10px 18px;color:var(--void);font-family:'Share Tech Mono',monospace;font-size:0.58rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-weight:700;white-space:nowrap;">Save ✦</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- APPLICATION FORM -->
+    <div id="appForm">
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;">
+          <div><label style="font-family:'Share Tech Mono',monospace;font-size:0.52rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--myst-bright);display:block;margin-bottom:7px;">Minecraft IGN *</label><input id="appUser" type="text" placeholder="YourIGN" style="width:100%;background:var(--shadow);border:1px solid rgba(110,63,243,0.2);padding:13px 14px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:0.72rem;outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='var(--myst-bright)'" onblur="this.style.borderColor='rgba(110,63,243,0.2)'" /></div>
+          <div><label style="font-family:'Share Tech Mono',monospace;font-size:0.52rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--myst-bright);display:block;margin-bottom:7px;">Discord Username *</label><input id="appDiscord" type="text" placeholder="yourname" style="width:100%;background:var(--shadow);border:1px solid rgba(110,63,243,0.2);padding:13px 14px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:0.72rem;outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='var(--myst-bright)'" onblur="this.style.borderColor='rgba(110,63,243,0.2)'" /></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;">
+          <div><label style="font-family:'Share Tech Mono',monospace;font-size:0.52rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--myst-bright);display:block;margin-bottom:7px;">Age *</label><input id="appAge" type="number" min="10" max="99" placeholder="Your age" style="width:100%;background:var(--shadow);border:1px solid rgba(110,63,243,0.2);padding:13px 14px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:0.72rem;outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='var(--myst-bright)'" onblur="this.style.borderColor='rgba(110,63,243,0.2)'" /></div>
+          <div><label style="font-family:'Share Tech Mono',monospace;font-size:0.52rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--myst-bright);display:block;margin-bottom:7px;">Your Email *</label><input id="appEmail" type="email" placeholder="you@gmail.com" style="width:100%;background:var(--shadow);border:1px solid rgba(110,63,243,0.2);padding:13px 14px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:0.72rem;outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='var(--myst-bright)'" onblur="this.style.borderColor='rgba(110,63,243,0.2)'" /></div>
+        </div>
+        <div><label style="font-family:'Share Tech Mono',monospace;font-size:0.52rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--myst-bright);display:block;margin-bottom:7px;">Why do you want to be staff? *</label><textarea id="appWhy" placeholder="Tell us why you'd be a great addition to the team..." rows="4" style="width:100%;background:var(--shadow);border:1px solid rgba(110,63,243,0.2);padding:13px 14px;color:var(--text);font-family:'Crimson Pro',serif;font-size:0.95rem;outline:none;resize:vertical;transition:border-color 0.2s;" onfocus="this.style.borderColor='var(--myst-bright)'" onblur="this.style.borderColor='rgba(110,63,243,0.2)'"></textarea></div>
+        <div><label style="font-family:'Share Tech Mono',monospace;font-size:0.52rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--myst-bright);display:block;margin-bottom:7px;">Past experience (optional)</label><textarea id="appExp" placeholder="Any previous staff experience on other servers?" rows="3" style="width:100%;background:var(--shadow);border:1px solid rgba(110,63,243,0.2);padding:13px 14px;color:var(--text);font-family:'Crimson Pro',serif;font-size:0.95rem;outline:none;resize:vertical;transition:border-color 0.2s;" onfocus="this.style.borderColor='var(--myst-bright)'" onblur="this.style.borderColor='rgba(110,63,243,0.2)'"></textarea></div>
+        <button onclick="submitApp()" id="appSubmitBtn" style="background:linear-gradient(135deg,var(--myst),#4a1fb8);border:none;padding:17px;color:#fff;font-family:'Share Tech Mono',monospace;font-size:0.68rem;letter-spacing:0.2em;text-transform:uppercase;cursor:pointer;transition:opacity 0.2s;margin-top:4px;" onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'">Submit Application ✦</button>
+      </div>
+    </div>
+
+    <div id="appSuccess" style="display:none;background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.3);padding:40px;text-align:center;">
+      <div style="font-size:2.5rem;margin-bottom:16px;">✅</div>
+      <h4 style="font-family:'Cinzel',serif;font-size:1.3rem;margin-bottom:12px;color:#4ade80;">Application Received!</h4>
+      <p style="font-size:0.95rem;color:var(--dim);font-weight:300;line-height:1.7;">Jellou will review your application and email you the decision. You can also check your status below using your IGN. Good luck! <span aria-label="Folded hands" role="img">🙏</span></p>
+    </div>
+  </div>
+
+  <!-- STATUS CHECKER -->
+  <div style="max-width:620px;margin-top:32px;border-top:1px solid rgba(110,63,243,0.15);padding-top:32px;">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:0.55rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--myst-bright);margin-bottom:16px;"><span aria-label="Magnifying glass" role="img">🔍</span> Check Application Status</div>
+    <div style="display:flex;gap:0;">
+      <input id="statusIGN" type="text" placeholder="Enter your Minecraft IGN..." style="flex:1;background:var(--shadow);border:1px solid rgba(110,63,243,0.2);border-right:none;padding:13px 14px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:0.72rem;outline:none;" />
+      <button onclick="checkStatus()" style="background:var(--myst);border:none;padding:13px 20px;color:#fff;font-family:'Share Tech Mono',monospace;font-size:0.58rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;">Check</button>
+    </div>
+    <div id="statusResult" style="margin-top:4px;display:none;"></div>
+  </div>
+
+  <!-- ADMIN DASHBOARD (only visible when logged in as Jellou) -->
+  <div id="adminPanel" style="display:none;margin-top:48px;border-top:1px solid rgba(110,63,243,0.2);padding-top:40px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div style="font-family:'Cinzel',serif;font-size:1.3rem;font-weight:700;color:var(--myst-glow);"><span aria-label="Crown" role="img">👑</span> Admin Dashboard</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:0.5rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--dim);margin-top:4px;">Logged in as Jellou Yukimura</div>
+      </div>
+      <button onclick="adminLogout()" style="background:none;border:1px solid rgba(110,63,243,0.3);padding:8px 16px;color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:0.5rem;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;">Sign Out</button>
+    </div>
+    <div id="appsList" style="display:flex;flex-direction:column;gap:2px;">
+      <div style="text-align:center;padding:32px;font-family:'Share Tech Mono',monospace;font-size:0.55rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--dim);">Loading applications...</div>
+    </div>
+  </div>
+
+  <!-- ADMIN LOGIN BUTTON (secret — bottom of section) -->
+  <div style="margin-top:40px;text-align:center;">
+    <button id="adminLoginBtn" onclick="adminLogin()" style="background:none;border:none;color:rgba(110,63,243,0.2);font-family:'Share Tech Mono',monospace;font-size:0.45rem;letter-spacing:0.2em;text-transform:uppercase;cursor:pointer;padding:8px;">Staff Portal</button>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="section reveal" id="faq" style="background:var(--shadow);">
+  <div class="section-tag">Help</div>
+  <h2 class="section-title">Frequently Asked <em>Questions</em></h2>
+  <p class="section-intro">Everything you need to know before joining Mystfit.</p>
+
+  <div style="max-width:720px;margin-top:56px;display:flex;flex-direction:column;gap:2px;">
+
+    <!-- FAQ ITEMS -->
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)" aria-expanded="false">
+        <span>Is the server cracked / offline mode?</span>
+        <span class="faq-arrow">▸</span>
+      </button>
+      <div class="faq-a">Yes — Mystfit supports cracked (offline mode) accounts! You don't need a premium Minecraft account to join. Everyone is welcome. 🎮</div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)" aria-expanded="false">
+        <span>What Minecraft version does the server run?</span>
+        <span class="faq-arrow">▸</span>
+      </button>
+      <div class="faq-a">Mystfit runs on Minecraft <strong style="color:var(--myst-glow)">1.21</strong> and supports both <strong style="color:var(--myst-glow)">Java and Bedrock</strong> editions. Bedrock players can join using the same IP.</div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)" aria-expanded="false">
+        <span>Is the server online 24/7?</span>
+        <span class="faq-arrow">▸</span>
+      </button>
+      <div class="faq-a">Yes — Mystfit is hosted on a dedicated server and runs 24/7. Scheduled maintenance will always be announced in Discord beforehand.</div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)" aria-expanded="false">
+        <span>How do I report a hacker or rule breaker?</span>
+        <span class="faq-arrow">▸</span>
+      </button>
+      <div class="faq-a">Open a ticket in our <a href="https://discord.gg/mqCBgrvesg" target="_blank" style="color:var(--myst-glow);">Discord server</a> and include their IGN and evidence (screenshots or video). Staff review all reports within 24 hours.</div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)" aria-expanded="false">
+        <span>How do I apply for staff?</span>
+        <span class="faq-arrow">▸</span>
+      </button>
+      <div class="faq-a">Scroll down to the <a href="#apply" style="color:var(--myst-glow);">Staff Application</a> section and fill out the form. Jellou reviews every application personally. Make sure you've played on the server first!</div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)" aria-expanded="false">
+        <span>Are ranks permanent or do they expire?</span>
+        <span class="faq-arrow">▸</span>
+      </button>
+      <div class="faq-a">All ranks are <strong style="color:var(--myst-glow)">monthly subscriptions</strong>. Your perks stay active as long as your subscription is active. To purchase, join our Discord and contact Jellou directly.</div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)" aria-expanded="false">
+        <span>Can I get banned for using mods?</span>
+        <span class="faq-arrow">▸</span>
+      </button>
+      <div class="faq-a">Performance mods like Optifine, Sodium, and minimap mods are allowed. Hacked clients, X-ray, auto-clickers, and any mod that gives an unfair advantage will result in a permanent ban.</div>
+    </div>
+
+  </div>
+
+  <!-- Q&A SUBMISSION BOX -->
+  <div style="max-width:720px;margin-top:48px;border-top:1px solid rgba(110,63,243,0.15);padding-top:40px;">
+    <div style="font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:6px;">Still have a question?</div>
+    <p style="font-size:0.9rem;color:var(--dim);font-weight:300;margin-bottom:20px;line-height:1.7;">Ask anything — the staff team will answer publicly so everyone benefits.</p>
+    <div id="qaForm" style="display:flex;flex-direction:column;gap:2px;">
+      <div style="background:var(--deep);border:1px solid rgba(110,63,243,0.2);padding:13px 16px;color:var(--myst-glow);font-family:'Share Tech Mono',monospace;font-size:0.68rem;display:flex;align-items:center;gap:8px;">
+        <span style="opacity:0.5;flex-shrink:0;">🔒</span>
+        <span id="qaChatNameLabel">Set your IGN in Global Chat first ↑</span>
+        <span style="font-size:0.45rem;color:var(--dim);margin-left:auto;white-space:nowrap;">Locked IGN</span>
+      </div>
+      <input id="qaName" type="hidden" value="" />
+      <textarea id="qaQuestion" placeholder="What's your question?" rows="3" maxlength="500"
+        style="width:100%;background:var(--deep);border:1px solid rgba(110,63,243,0.2);padding:13px 16px;color:var(--text);font-family:'Crimson Pro',serif;font-size:0.95rem;outline:none;resize:vertical;transition:border-color 0.2s;"
+        onfocus="this.style.borderColor='var(--myst-bright)'" onblur="this.style.borderColor='rgba(110,63,243,0.2)'"></textarea>
+      <button onclick="submitQuestion()" id="qaSubmitBtn"
+        style="background:linear-gradient(135deg,var(--myst),#4a1fb8);border:none;padding:15px;color:#fff;font-family:'Share Tech Mono',monospace;font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;cursor:pointer;transition:opacity 0.2s;"
+        onmouseenter="this.style.opacity='0.85'" onmouseleave="this.style.opacity='1'">Submit Question ✦</button>
+    </div>
+    <div id="qaSuccess" style="display:none;padding:24px;background:rgba(74,222,128,0.07);border:1px solid rgba(74,222,128,0.25);text-align:center;margin-top:4px;">
+      <div style="font-family:'Cinzel',serif;font-size:1rem;color:#4ade80;margin-bottom:6px;">Question Submitted!</div>
+      <p style="font-size:0.85rem;color:var(--dim);font-weight:300;">Staff will answer it soon. Check back here to see the reply!</p>
+    </div>
+
+    <!-- ANSWERED Q&A PUBLIC FEED -->
+    <div id="qaFeed" style="margin-top:32px;display:flex;flex-direction:column;gap:2px;"></div>
+  </div>
+
+  <!-- ADMIN Q&A PANEL (only visible when admin logged in) -->
+  <div id="qaAdminPanel" style="display:none;max-width:720px;margin-top:40px;border-top:1px solid rgba(240,192,64,0.2);padding-top:32px;">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:0.55rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--gold);margin-bottom:20px;">👑 Pending Questions</div>
+    <div id="qaPendingList" style="display:flex;flex-direction:column;gap:2px;"></div>
+  </div>
+</section>
+
+<div class="rune-divider"><span>✦ ✦ ✦</span></div>
+
+<!-- CTA -->
+<section class="cta-section reveal">
+  <div class="cta-glow"></div>
+  <h2 class="cta-title">Your Legend<br>Starts Here</h2>
+  <p class="cta-sub">Be one of the first to join. Founding members are remembered forever.</p>
+  <div class="cta-buttons">
+    <a href="#" class="btn-main" style="pointer-events:none;opacity:0.6;">IP Coming Soon</a>
+    <a href="https://discord.gg/mqCBgrvesg" target="_blank" class="btn-outline">Join Discord</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-top">
+    <div class="footer-brand">
+      <h3>MYSTFIT</h3>
+      <p>A community-first Minecraft server built on survival, economy, and RPG adventure. Your world. Your rules.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Server</h4>
+      <ul>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#ranks">Ranks</a></li>
+        <li><a href="#rules">Rules</a></li>
+        <li><a href="#join">How to Join</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Community</h4>
+      <ul>
+        <li><a href="https://discord.gg/mqCBgrvesg" target="_blank">Discord Server</a></li>
+        <li><a href="#chat">Global Chat</a></li>
+        <li><a href="#faq">FAQ</a></li>
+        <li><a href="#apply">Apply for Staff</a></li>
+        <li><a href="#news">Announcements</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>© 2025 Mystfit — All rights reserved</p>
+    <p>Server IP — Coming Soon</p>
+  </div>
+</footer>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+  // Cursor — only hide system cursor after confirming elements exist
+  const cur = document.getElementById('cur');
+  const trail = document.getElementById('cur-trail');
+  if (cur && trail) {
+    // Safe to hide cursor now
+    document.body.style.cursor = 'none';
+    document.querySelectorAll('a, button').forEach(el => el.style.cursor = 'none');
+
+    let mx = 0, my = 0, tx = 0, ty = 0;
+    // Use transform translate3d — GPU accelerated, no layout thrash
+    document.addEventListener('mousemove', e => {
+      mx = e.clientX; my = e.clientY;
+      cur.style.transform = `translate3d(${mx - 5}px, ${my - 5}px, 0)`;
+    }, { passive: true });
+
+    function animTrail() {
+      tx += (mx - tx) * 0.12;
+      ty += (my - ty) * 0.12;
+      trail.style.transform = `translate3d(${tx - 14}px, ${ty - 14}px, 0)`;
+      requestAnimationFrame(animTrail);
+    }
+    animTrail();
+
+    document.querySelectorAll('a, button').forEach(el => {
+      el.addEventListener('mouseenter', () => { cur.style.width='18px'; cur.style.height='18px'; trail.style.width='44px'; trail.style.height='44px'; trail.style.borderColor='rgba(110,63,243,0.8)'; });
+      el.addEventListener('mouseleave', () => { cur.style.width='10px'; cur.style.height='10px'; trail.style.width='28px'; trail.style.height='28px'; trail.style.borderColor='rgba(110,63,243,0.5)'; });
+    });
+
+    // Hide cursor when leaving window
+    document.addEventListener('mouseleave', () => { cur.style.opacity='0'; trail.style.opacity='0'; });
+    document.addEventListener('mouseenter', () => { cur.style.opacity='1'; trail.style.opacity='1'; });
+  }
+
+  // Particles — pause during scroll for smooth performance
+  const canvas = document.getElementById('particles');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+  window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }, { passive: true });
+
+  const stars = Array.from({length: 80}, () => ({
+    x: Math.random() * window.innerWidth,
+    y: Math.random() * window.innerHeight,
+    r: Math.random() * 1.5 + 0.3,
+    vx: (Math.random() - 0.5) * 0.12,
+    vy: (Math.random() - 0.5) * 0.12,
+    opacity: Math.random() * 0.5 + 0.1,
+    pulse: Math.random() * Math.PI * 2
+  }));
+
+  let isScrolling = false, scrollTimer;
+  window.addEventListener('scroll', () => {
+    isScrolling = true;
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => { isScrolling = false; }, 150);
+  }, { passive: true });
+
+  let frame = 0;
+  function drawParticles() {
+    requestAnimationFrame(drawParticles);
+    if (isScrolling) return; // skip drawing during scroll
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    frame++;
+    stars.forEach(s => {
+      s.x += s.vx; s.y += s.vy; s.pulse += 0.02;
+      if(s.x < 0) s.x = canvas.width;
+      if(s.x > canvas.width) s.x = 0;
+      if(s.y < 0) s.y = canvas.height;
+      if(s.y > canvas.height) s.y = 0;
+      const op = s.opacity * (0.7 + 0.3 * Math.sin(s.pulse));
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(155, 111, 255, ${op})`;
+      ctx.fill();
+    });
+  }
+  drawParticles();
+
+  // Scroll reveal — trigger slightly before element enters viewport
+  const revels = document.querySelectorAll('.reveal');
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => { if(e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
+  }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+  revels.forEach(r => obs.observe(r));
+
+  // Copy IP
+  function copyIP() {
+    navigator.clipboard.writeText('play.mystfit.net').then(() => {
+      const btn = document.querySelector('.ip-copy');
+      if(btn) { btn.textContent = '✓ Copied!'; setTimeout(() => btn.textContent = 'Copy IP', 2000); }
+    });
+  }
+
+  // Mobile menu toggle
+  function toggleMenu() {
+    const menu = document.getElementById('mobileMenu');
+    const isOpen = menu.style.display === 'flex';
+    menu.style.display = isOpen ? 'none' : 'flex';
+    document.body.style.overflow = isOpen ? '' : 'hidden';
+  }
+
+  // ─── IDENTITY LOCK SYSTEM ───────────────────────────────────────────────────
+  // How it works:
+  //   1. Each visitor gets a random unique ID (UID) stored in their browser.
+  //   2. When they pick an IGN, it's saved linked to their UID.
+  //   3. Nobody else can claim the same IGN (checked against Firebase).
+  //   4. Every chat message & Q&A stores the hidden UID — admins can see it.
+  //   5. Even if they type a friend's name, their UID will be different, so
+  //      you always know who ACTUALLY sent the message.
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  const RESERVED_NAMES = ['jellou', 'jellou yukimura', 'owner', 'admin'];
+  const VERIFIED_KEY   = 'mystfit_verified_owner';
+  const FB_KEY         = 'mystfit_firebase_url';
+
+  let isVerifiedOwner = localStorage.getItem(VERIFIED_KEY) === 'true';
+  let firebaseUrl     = localStorage.getItem(FB_KEY) || 'https://mystfit-e2fe4-default-rtdb.asia-southeast1.firebasedatabase.app';
+  let chatPolling     = null;
+  let lockedName      = null;   // the IGN claimed by this visitor
+  let currentUID      = null;   // unique ID for this browser
+
+  // ── Give every visitor a persistent UID and verify their claimed name ────────
+  // ALWAYS checks Firebase — so even on a new device/browser, reserved names
+  // can never be used without the password, and claimed names carry over.
+  async function initUID() {
+    let uid = localStorage.getItem('mystfit-uid');
+    if (!uid) {
+      uid = 'u_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9);
+      localStorage.setItem('mystfit-uid', uid);
+    }
+    currentUID = uid;
+
+    try {
+      const res    = await fetch(`${firebaseUrl}/mystfit-names/${uid}.json`);
+      const fbName = await res.json();
+      if (fbName && typeof fbName === 'string') {
+        // Restore the display-case name from localStorage if available, else use Firebase value
+        const displayName = localStorage.getItem('mystfit-claimed-' + uid) || fbName;
+        localStorage.setItem('mystfit-claimed-' + uid, displayName);
+        lockedName = displayName;
+        setIdentityUI(displayName);
+        return;
+      }
+    } catch(e) { /* Firebase unreachable — fall through to localStorage */ }
+
+    // Fallback: localStorage only (offline)
+    const saved = localStorage.getItem('mystfit-claimed-' + uid);
+    if (saved) {
+      lockedName = saved;
+      setIdentityUI(saved);
+    } else {
+      document.getElementById('chatIdentitySetup').style.display = 'block';
+      setIdentityUI(null);
+    }
+  }
+  initUID();
+
+  function setIdentityUI(name) {
+    const chatLabel = document.getElementById('chatNameLabel');
+    const qaLabel   = document.getElementById('qaChatNameLabel');
+    const qaHidden  = document.getElementById('qaName');
+    const display   = document.getElementById('chatNameDisplay');
+    if (name) {
+      const isOwner = isVerifiedOwner && RESERVED_NAMES.includes(name.toLowerCase());
+      const shown   = isOwner ? '👑 ' + name : name;
+      if (chatLabel) chatLabel.textContent = shown;
+      if (display)   display.style.color = isOwner ? 'var(--gold)' : 'var(--myst-glow)';
+      if (qaLabel)   qaLabel.textContent = shown;
+      if (qaHidden)  qaHidden.value = name;
+    } else {
+      if (chatLabel) chatLabel.textContent = '— claim a name —';
+      if (qaLabel)   qaLabel.textContent = 'Claim your IGN in Global Chat ↑';
+      if (qaHidden)  qaHidden.value = '';
+    }
+  }
+
+  async function claimChatName() {
+    const inp  = document.getElementById('chatNameClaim');
+    const btn  = inp.nextElementSibling || document.querySelector('[onclick="claimChatName()"]');
+    const name = (inp.value || '').trim().slice(0, 20);
+    if (!name) { inp.placeholder = 'Type your IGN first!'; inp.focus(); return; }
+
+    // ALWAYS block reserved names unless password verified — no exceptions
+    if (RESERVED_NAMES.includes(name.toLowerCase())) {
+      if (!isVerifiedOwner) {
+        const pass = prompt('⚠ That name is reserved for the server owner.\nEnter the owner password to use it:');
+        if (pass === ADMIN_PASS) {
+          isVerifiedOwner = true;
+          localStorage.setItem(VERIFIED_KEY, 'true');
+        } else {
+          alert('❌ Wrong password. You cannot use that name.'); inp.value = ''; return;
+        }
+      }
+    }
+
+    // Check Firebase — is this name already taken by a DIFFERENT UID?
+    inp.disabled = true;
+    try {
+      const res  = await fetch(`${firebaseUrl}/mystfit-names.json`);
+      const data = await res.json();
+      if (data && typeof data === 'object') {
+        for (const [uid, claimedName] of Object.entries(data)) {
+          if (typeof claimedName === 'string' && claimedName.toLowerCase() === name.toLowerCase() && uid !== currentUID) {
+            alert('⚠ That IGN is already claimed by someone else!\nUse your real Minecraft IGN.');
+            inp.disabled = false; return;
+          }
+        }
+      }
+    } catch(e) {
+      // Firebase unreachable — still block reserved names locally
+      if (RESERVED_NAMES.includes(name.toLowerCase()) && !isVerifiedOwner) {
+        alert('❌ Cannot verify — reserved name blocked while offline.'); inp.disabled = false; return;
+      }
+    }
+    inp.disabled = false;
+
+    // Save to Firebase (authoritative store) + localStorage (fast restore)
+    try {
+      await fetch(`${firebaseUrl}/mystfit-names/${currentUID}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(name.toLowerCase())
+      });
+    } catch(e) { /* silent — localStorage still works */ }
+
+    localStorage.setItem('mystfit-claimed-' + currentUID, name);
+    lockedName = name;
+    document.getElementById('chatIdentitySetup').style.display = 'none';
+    setIdentityUI(name);
+  }
+
+  // ── Firebase REST helpers ─────────────────────────────────────────────────────
+  function saveFirebaseUrl() {
+    const val = document.getElementById('fbUrlInput').value.trim().replace(/\/$/, '');
+    if (!val.startsWith('https://')) { alert('Please enter a valid Firebase URL starting with https://'); return; }
+    firebaseUrl = val;
+    localStorage.setItem(FB_KEY, val);
+    document.getElementById('chatSetup').style.display = 'none';
+    initChat();
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function timeAgo(ts) {
+    const s = Math.floor((Date.now() - ts) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return Math.floor(s/60) + 'm ago';
+    if (s < 86400) return Math.floor(s/3600) + 'h ago';
+    return Math.floor(s/86400) + 'd ago';
+  }
+
+  // ── Render chat messages ──────────────────────────────────────────────────────
+  function renderChatMessages(data) {
+    const box = document.getElementById('chatBox');
+    let msgs = [];
+    if (data && typeof data === 'object' && !data.error) {
+      msgs = Object.values(data).filter(m => m && m.text && m.ts).sort((a,b) => a.ts - b.ts).slice(-50);
+    }
+    box.innerHTML = '';
+    if (!msgs.length) {
+      box.innerHTML = '<div style="text-align:center;font-family:\'Share Tech Mono\',monospace;font-size:0.5rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--dim);padding:20px 0;">— No messages yet. Be the first to say hi! 👋 —</div>';
+      return;
+    }
+    msgs.forEach(m => {
+      const isOwner  = m.ownerVerified && RESERVED_NAMES.includes((m.name||'').toLowerCase());
+      const hue      = isOwner ? 45 : Math.abs((m.name||'').split('').reduce((a,c)=>a*31+c.charCodeAt(0),0)) % 360;
+      const nameShow = isOwner ? '👑 ' + escHtml(m.name) : escHtml(m.name||'Anonymous');
+      const nameCol  = isOwner ? 'var(--gold)' : `hsl(${hue},70%,70%)`;
+      // Admins see a red UID badge so they always know who really sent it
+      const uidBadge = isAdmin
+        ? `<span title="Real UID: ${escHtml(m.uid||'')}" style="font-family:'Share Tech Mono',monospace;font-size:0.38rem;color:#f87171;opacity:0.8;cursor:help;">[${escHtml((m.uid||'???').slice(0,8))}]</span>`
+        : '';
+      const el = document.createElement('div');
+      el.style.cssText = 'display:flex;gap:10px;align-items:flex-start;';
+      el.innerHTML = `
+        <div style="flex-shrink:0;width:30px;height:30px;border-radius:50%;background:hsl(${hue},50%,30%);border:1px solid hsl(${hue},60%,50%);display:flex;align-items:center;justify-content:center;font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:#fff;font-weight:700;">${isOwner ? '👑' : escHtml((m.name||'?')[0].toUpperCase())}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;gap:8px;align-items:baseline;margin-bottom:3px;flex-wrap:wrap;">
+            <span style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:${nameCol};">${nameShow}</span>
+            ${uidBadge}
+            <span style="font-family:'Share Tech Mono',monospace;font-size:0.44rem;color:var(--dim);">${timeAgo(m.ts)}</span>
+          </div>
+          <div style="font-size:0.92rem;color:var(--silver);line-height:1.5;word-break:break-word;">${escHtml(m.text)}</div>
+        </div>`;
+      box.appendChild(el);
+    });
+    box.scrollTop = box.scrollHeight;
+  }
+
+  async function loadChatMessages() {
+    if (!firebaseUrl) return;
+    try {
+      const res  = await fetch(`${firebaseUrl}/mystfit-chat.json`);
+      const data = await res.json();
+      if (data && data.error) {
+        document.getElementById('chatBox').innerHTML = `<div style="text-align:center;font-family:'Share Tech Mono',monospace;font-size:0.5rem;letter-spacing:0.2em;text-transform:uppercase;color:#f87171;padding:20px 0;">⚠ Firebase Error: ${escHtml(data.error)} — Set database to Test Mode</div>`;
+        return;
+      }
+      renderChatMessages(data);
+    } catch(e) {
+      // Silent fail — don't spam console or scare visitors
+    }
+  }
+
+  async function sendChat() {
+    if (!lockedName) {
+      document.getElementById('chatIdentitySetup').style.display = 'block';
+      const inp = document.getElementById('chatNameClaim');
+      inp.placeholder = 'Claim your IGN first!';
+      inp.focus();
+      return;
+    }
+    const msgEl = document.getElementById('chatMsg');
+    const text  = (msgEl.value || '').trim();
+    if (!text) return;
+    if (!firebaseUrl) { alert('Please set up Firebase first!'); return; }
+    msgEl.value = '';
+    try {
+      await fetch(`${firebaseUrl}/mystfit-chat.json`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: lockedName,
+          text,
+          ts: Date.now(),
+          uid: currentUID,                        // hidden — admin-only visible
+          ownerVerified: isVerifiedOwner && RESERVED_NAMES.includes(lockedName.toLowerCase())
+        })
+      });
+      loadChatMessages();
+    } catch(e) { /* silent */ }
+  }
+
+  function initChat() {
+    document.getElementById('chatWelcome').style.display = 'none';
+    loadChatMessages();
+    if (chatPolling) clearInterval(chatPolling);
+    chatPolling = setInterval(loadChatMessages, 5000);
+  }
+
+  // Auto-init chat if Firebase URL is set
+  if (firebaseUrl) {
+    document.getElementById('chatSetup').style.display = 'none';
+    document.getElementById('fbUrlInput').value = firebaseUrl;
+    initChat();
+  }
+
+  // ─── FAQ ACCORDION ───
+  function toggleFaq(btn) {
+    const answer = btn.nextElementSibling;
+    const isOpen = btn.getAttribute('aria-expanded') === 'true';
+    // Close all others
+    document.querySelectorAll('.faq-q').forEach(b => {
+      b.setAttribute('aria-expanded', 'false');
+      b.nextElementSibling.classList.remove('open');
+    });
+    // Toggle clicked
+    if (!isOpen) {
+      btn.setAttribute('aria-expanded', 'true');
+      answer.classList.add('open');
+    }
+  }
+
+  // ─── Q&A SYSTEM ───
+  function getQAUrl(key) {
+    return key ? `${firebaseUrl}/mystfit-qa/${key}.json` : `${firebaseUrl}/mystfit-qa.json`;
+  }
+
+  async function submitQuestion() {
+    const name     = lockedName || document.getElementById('qaName').value.trim();
+    const question = document.getElementById('qaQuestion').value.trim();
+    if (!name) { alert('Please claim your IGN in the Global Chat section first!'); return; }
+    if (!question) { alert('Please write your question!'); return; }
+    const btn = document.getElementById('qaSubmitBtn');
+    btn.textContent = 'Submitting...'; btn.disabled = true; btn.style.opacity = '0.6';
+    const key = name.toLowerCase().replace(/[^a-z0-9]/g,'_') + '_' + Date.now();
+    try {
+      await fetch(getQAUrl(key), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, question, answer: '', ts: Date.now(), answered: false, uid: currentUID || 'unknown' })
+      });
+      document.getElementById('qaForm').style.display = 'none';
+      document.getElementById('qaSuccess').style.display = 'block';
+      loadQAFeed();
+    } catch(e) {
+      alert('Failed to submit. Check Firebase is connected!');
+      btn.textContent = 'Submit Question ✦'; btn.disabled = false; btn.style.opacity = '1';
+    }
+  }
+
+  async function loadQAFeed() {
+    const feed = document.getElementById('qaFeed');
+    try {
+      const res = await fetch(getQAUrl());
+      const data = await res.json();
+      if (!data || data.error || typeof data !== 'object') { feed.innerHTML = ''; return; }
+      const answered = Object.entries(data)
+        .filter(([,q]) => q.answered && q.answer)
+        .sort((a,b) => b[1].ts - a[1].ts);
+      if (!answered.length) { feed.innerHTML = ''; return; }
+      feed.innerHTML = `<div style="font-family:'Share Tech Mono',monospace;font-size:0.5rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--myst-bright);margin-bottom:12px;">✦ Answered by Staff</div>`;
+      answered.forEach(([,q]) => {
+        const card = document.createElement('div');
+        card.style.cssText = 'background:var(--deep);border:1px solid rgba(110,63,243,0.15);border-left:3px solid var(--myst);padding:20px 22px;margin-bottom:2px;';
+        card.innerHTML = `
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+            <span style="font-family:'Share Tech Mono',monospace;font-size:0.5rem;letter-spacing:0.1em;color:var(--myst-bright);">Q</span>
+            <div style="font-family:'Cinzel',serif;font-size:0.88rem;color:var(--text);font-weight:600;">${escHtml(q.question)}</div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+            <span style="font-family:'Share Tech Mono',monospace;font-size:0.5rem;letter-spacing:0.1em;color:var(--gold);flex-shrink:0;margin-top:3px;">A</span>
+            <div style="font-size:0.9rem;color:var(--silver);line-height:1.7;font-weight:300;">${escHtml(q.answer)}</div>
+          </div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:0.43rem;color:var(--dim);margin-top:10px;letter-spacing:0.08em;">Asked by ${escHtml(q.name)} · Answered by Staff</div>`;
+        feed.appendChild(card);
+      });
+    } catch(e) { feed.innerHTML = ''; }
+  }
+  loadQAFeed();
+
+  // Admin Q&A panel — loads when admin logs in
+  async function loadQAPending() {
+    const list = document.getElementById('qaPendingList');
+    if (!list) return;
+    try {
+      const res = await fetch(getQAUrl());
+      const data = await res.json();
+      if (!data || typeof data !== 'object') {
+        list.innerHTML = '<div style="font-family:\'Share Tech Mono\',monospace;font-size:0.52rem;color:var(--dim);">No questions yet.</div>';
+        return;
+      }
+      const pending = Object.entries(data).filter(([,q]) => !q.answered).sort((a,b) => b[1].ts - a[1].ts);
+      if (!pending.length) {
+        list.innerHTML = '<div style="font-family:\'Share Tech Mono\',monospace;font-size:0.52rem;color:var(--dim);">No unanswered questions.</div>';
+        return;
+      }
+      list.innerHTML = '';
+      pending.forEach(([key, q]) => {
+        const card = document.createElement('div');
+        card.style.cssText = 'background:var(--shadow);border:1px solid rgba(240,192,64,0.15);border-left:3px solid var(--gold);padding:18px 20px;margin-bottom:2px;';
+        card.innerHTML = `
+          <div style="font-family:'Cinzel',serif;font-size:0.88rem;color:var(--text);margin-bottom:4px;">"${escHtml(q.question)}"</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:0.45rem;color:var(--dim);margin-bottom:12px;">Asked by ${escHtml(q.name)} &nbsp;·&nbsp; <span style="color:#f87171;" title="Real unique ID — use this to identify the actual sender">UID: ${escHtml((q.uid||'unknown').slice(0,14))}...</span></div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <textarea id="qaans_${key}" placeholder="Write your answer..." rows="2"
+              style="width:100%;background:var(--deep);border:1px solid rgba(110,63,243,0.2);padding:10px 12px;color:var(--text);font-family:'Crimson Pro',serif;font-size:0.9rem;outline:none;resize:vertical;box-sizing:border-box;"></textarea>
+            <div style="display:flex;gap:4px;">
+              <button onclick="answerQuestion('${key}')" style="flex:1;background:#14532d;border:1px solid #4ade80;padding:10px;color:#4ade80;font-family:'Share Tech Mono',monospace;font-size:0.52rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;">✅ Publish Answer</button>
+              <button onclick="deleteQuestion('${key}')" style="background:#7f1d1d;border:1px solid #f87171;padding:10px 14px;color:#f87171;font-family:'Share Tech Mono',monospace;font-size:0.52rem;cursor:pointer;">🗑</button>
+            </div>
+          </div>`;
+        list.appendChild(card);
+      });
+    } catch(e) { list.innerHTML = '<div style="color:#f87171;font-family:\'Share Tech Mono\',monospace;font-size:0.52rem;">Error loading questions.</div>'; }
+  }
+
+  async function answerQuestion(key) {
+    const ansEl = document.getElementById('qaans_' + key);
+    const answer = ansEl ? ansEl.value.trim() : '';
+    if (!answer) { alert('Please write an answer first!'); return; }
+    await fetch(getQAUrl(key), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answer, answered: true })
+    });
+    loadQAPending();
+    loadQAFeed();
+  }
+
+  async function deleteQuestion(key) {
+    if (!confirm('Delete this question?')) return;
+    await fetch(getQAUrl(key), { method: 'DELETE' });
+    loadQAPending();
+    loadQAFeed();
+  }
+  const EJS_KEY = 'mystfit_ejs';
+  let ejsConfig = JSON.parse(localStorage.getItem(EJS_KEY) || 'null');
+  const ADMIN_PASS = 'Jellou2025!'; // Change this to whatever you want
+  let isAdmin = false;
+
+  // Uses same Firebase REST URL as chat — no extra setup needed!
+  function getAppUrl(key) {
+    return key
+      ? `${firebaseUrl}/mystfit-apps/${key}.json`
+      : `${firebaseUrl}/mystfit-apps.json`;
+  }
+
+  function saveEmailJS() {
+    const pubkey   = document.getElementById('ejs_pubkey').value.trim();
+    const service  = document.getElementById('ejs_service').value.trim();
+    const template = document.getElementById('ejs_template').value.trim();
+    if (!pubkey || !service || !template) { alert('Please fill in all three fields!'); return; }
+    ejsConfig = { pubkey, service, template };
+    localStorage.setItem(EJS_KEY, JSON.stringify(ejsConfig));
+    emailjs.init(pubkey);
+    document.getElementById('emailSetup').style.display = 'none';
+    alert('✅ Email setup saved!');
+  }
+  if (ejsConfig) {
+    emailjs.init(ejsConfig.pubkey);
+    document.getElementById('emailSetup').style.display = 'none';
+  }
+
+  async function submitApp() {
+    const user    = document.getElementById('appUser').value.trim();
+    const discord = document.getElementById('appDiscord').value.trim();
+    const age     = document.getElementById('appAge').value.trim();
+    const email   = document.getElementById('appEmail').value.trim();
+    const why     = document.getElementById('appWhy').value.trim();
+    const exp     = document.getElementById('appExp').value.trim();
+    if (!user || !discord || !age || !email || !why) { alert('Please fill in all required fields!'); return; }
+
+    const btn = document.getElementById('appSubmitBtn');
+    btn.textContent = 'Submitting...'; btn.disabled = true; btn.style.opacity = '0.6';
+
+    const app = { ign: user, discord, age, email, why, experience: exp||'None', ts: Date.now(), status: 'pending', reason: '' };
+    const key = user.toLowerCase().replace(/[^a-z0-9]/g,'_') + '_' + Date.now();
+    try {
+      const res = await fetch(getAppUrl(key), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(app)
+      });
+      if (!res.ok) throw new Error('Firebase error');
+      document.getElementById('appForm').style.display = 'none';
+      document.getElementById('appSuccess').style.display = 'block';
+    } catch(e) {
+      console.error(e);
+      alert('❌ Failed to submit. Check that your Firebase database is in Test Mode.');
+      btn.textContent = 'Submit Application ✦'; btn.disabled = false; btn.style.opacity = '1';
+    }
+  }
+
+  // Check status by IGN — no login needed
+  async function checkStatus() {
+    const ign = document.getElementById('statusIGN').value.trim().toLowerCase();
+    const box = document.getElementById('statusResult');
+    if (!ign) return;
+    box.style.display = 'block';
+    box.innerHTML = '<div style="padding:16px;background:var(--shadow);border:1px solid rgba(110,63,243,0.15);font-family:\'Share Tech Mono\',monospace;font-size:0.55rem;letter-spacing:0.1em;color:var(--dim);">Searching...</div>';
+    try {
+      const res = await fetch(getAppUrl());
+      const data = await res.json();
+      if (!data || data.error) { showNoApp(box); return; }
+      const entries = Object.values(data).filter(a => a.ign && a.ign.toLowerCase() === ign);
+      if (!entries.length) { showNoApp(box); return; }
+      const latest = entries.sort((a,b) => b.ts - a.ts)[0];
+      const colors = { pending:'#f59e0b', approved:'#4ade80', denied:'#f87171' };
+      const icons  = { pending:'⏳', approved:'✅', denied:'❌' };
+      const labels = { pending:'Under Review', approved:'Approved! 🎉', denied:'Not Accepted' };
+      const c = colors[latest.status] || '#f59e0b';
+      box.innerHTML = `<div style="padding:24px;background:var(--shadow);border:1px solid ${c}44;border-left:3px solid ${c};">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:${latest.reason?'14px':'0'}">
+          <span style="font-size:1.6rem;">${icons[latest.status]||'⏳'}</span>
+          <div>
+            <div style="font-family:'Cinzel',serif;font-size:1.05rem;font-weight:700;color:${c};">${labels[latest.status]||'Pending'}</div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:0.48rem;color:var(--dim);margin-top:3px;letter-spacing:0.1em;">Application for ${escHtml(latest.ign)}</div>
+          </div>
+        </div>
+        ${latest.reason ? `<div style="margin-top:12px;padding:14px;background:rgba(0,0,0,0.25);border-left:2px solid ${c}55;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:0.45rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--dim);margin-bottom:6px;">Message from Jellou:</div>
+          <div style="font-size:0.9rem;color:var(--silver);line-height:1.7;">${escHtml(latest.reason)}</div>
+        </div>` : ''}
+      </div>`;
+    } catch(e) {
+      box.innerHTML = '<div style="padding:16px;color:#f87171;font-family:\'Share Tech Mono\',monospace;font-size:0.55rem;">Error checking — make sure Firebase is connected.</div>';
+    }
+  }
+
+  function showNoApp(box) {
+    box.innerHTML = '<div style="padding:18px 20px;background:var(--shadow);border:1px solid rgba(110,63,243,0.12);font-family:\'Share Tech Mono\',monospace;font-size:0.52rem;color:var(--dim);letter-spacing:0.1em;">No application found for that IGN. Double check the spelling!</div>';
+  }
+
+  // ─── ADMIN LOGIN — simple password, only you know it ───
+  function adminLogin() {
+    const pass = prompt('Enter admin password:');
+    if (pass === ADMIN_PASS) {
+      isAdmin = true;
+      document.getElementById('adminPanel').style.display = 'block';
+      document.getElementById('adminLoginBtn').style.display = 'none';
+      document.getElementById('qaAdminPanel').style.display = 'block';
+      loadApplications();
+      loadQAPending();
+    } else if (pass !== null) {
+      alert('❌ Wrong password.');
+    }
+  }
+
+  function adminLogout() {
+    isAdmin = false;
+    document.getElementById('adminPanel').style.display = 'none';
+    document.getElementById('adminLoginBtn').style.display = 'block';
+    document.getElementById('qaAdminPanel').style.display = 'none';
+  }
+
+  async function loadApplications() {
+    const list = document.getElementById('appsList');
+    list.innerHTML = '<div style="text-align:center;padding:24px;font-family:\'Share Tech Mono\',monospace;font-size:0.55rem;color:var(--dim);">Loading applications...</div>';
+    try {
+      const res = await fetch(getAppUrl());
+      const data = await res.json();
+      if (!data || data.error || typeof data !== 'object') {
+        list.innerHTML = '<div style="text-align:center;padding:24px;font-family:\'Share Tech Mono\',monospace;font-size:0.55rem;color:var(--dim);">No applications yet.</div>';
+        return;
+      }
+      const apps = Object.entries(data).sort((a,b) => b[1].ts - a[1].ts);
+      if (!apps.length) { list.innerHTML = '<div style="text-align:center;padding:24px;font-family:\'Share Tech Mono\',monospace;font-size:0.55rem;color:var(--dim);">No applications yet.</div>'; return; }
+      list.innerHTML = '';
+      apps.forEach(([key, app]) => {
+        const sc = { pending:'#f59e0b', approved:'#4ade80', denied:'#f87171' }[app.status] || '#f59e0b';
+        const card = document.createElement('div');
+        card.style.cssText = `background:var(--shadow);border:1px solid rgba(110,63,243,0.1);border-left:3px solid ${sc};padding:22px;margin-bottom:2px;`;
+        card.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+            <div>
+              <div style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--text);">${escHtml(app.ign)}</div>
+              <div style="font-family:'Share Tech Mono',monospace;font-size:0.47rem;color:var(--dim);margin-top:3px;letter-spacing:0.08em;">
+                Discord: ${escHtml(app.discord)} &nbsp;·&nbsp; Age: ${escHtml(String(app.age))} &nbsp;·&nbsp; ${escHtml(app.email)}
+              </div>
+            </div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:0.47rem;text-transform:uppercase;letter-spacing:0.1em;color:${sc};padding:4px 10px;border:1px solid ${sc}44;">${app.status||'pending'}</div>
+          </div>
+          <div style="font-size:0.85rem;color:var(--silver);line-height:1.65;margin-bottom:${app.experience&&app.experience!=='None'?'8px':'12px'};">
+            <span style="font-family:'Share Tech Mono',monospace;font-size:0.44rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--myst-bright);">Why: </span>${escHtml(app.why)}
+          </div>
+          ${app.experience && app.experience!=='None' ? `<div style="font-size:0.82rem;color:var(--dim);margin-bottom:12px;"><span style="font-family:'Share Tech Mono',monospace;font-size:0.42rem;text-transform:uppercase;letter-spacing:0.1em;">Exp: </span>${escHtml(app.experience)}</div>` : ''}
+          ${app.status==='pending' ? `
+          <div style="display:flex;flex-direction:column;gap:4px;margin-top:10px;">
+            <textarea id="reason_${key}" placeholder="Message to applicant — required if denying, optional if approving..." rows="2"
+              style="width:100%;background:var(--deep);border:1px solid rgba(110,63,243,0.2);padding:10px 12px;color:var(--text);font-family:'Crimson Pro',serif;font-size:0.9rem;outline:none;resize:vertical;box-sizing:border-box;"></textarea>
+            <div style="display:flex;gap:4px;">
+              <button onclick="decideApp('${key}','approved')" style="flex:1;background:#14532d;border:1px solid #4ade80;padding:11px;color:#4ade80;font-family:'Share Tech Mono',monospace;font-size:0.52rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;">✅ Approve</button>
+              <button onclick="decideApp('${key}','denied')" style="flex:1;background:#7f1d1d;border:1px solid #f87171;padding:11px;color:#f87171;font-family:'Share Tech Mono',monospace;font-size:0.52rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;">❌ Deny</button>
+            </div>
+          </div>` : `<div style="font-family:'Share Tech Mono',monospace;font-size:0.45rem;color:var(--dim);margin-top:6px;letter-spacing:0.08em;">${app.reason ? 'Reason sent: ' + escHtml(app.reason) : 'No reason given'}</div>`}`;
+        list.appendChild(card);
+      });
+    } catch(e) {
+      list.innerHTML = '<div style="padding:20px;color:#f87171;font-family:\'Share Tech Mono\',monospace;font-size:0.55rem;">Error loading. Check Firebase is connected.</div>';
+    }
+  }
+
+  async function decideApp(key, decision) {
+    const reasonEl = document.getElementById('reason_' + key);
+    const reason = reasonEl ? reasonEl.value.trim() : '';
+    if (decision === 'denied' && !reason) { alert('Please write a reason for denying this application.'); return; }
+
+    // Get app data first for the email
+    const res = await fetch(getAppUrl(key));
+    const app = await res.json();
+    if (!app) return;
+
+    // Update status in Firebase
+    await fetch(getAppUrl(key), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: decision, reason })
+    });
+
+    // Email the applicant their result
+    if (ejsConfig && app.email) {
+      try {
+        await emailjs.send(ejsConfig.service, ejsConfig.template, {
+          to_email: app.email,
+          to_name: app.ign,
+          decision: decision === 'approved' ? '✅ APPROVED' : '❌ NOT ACCEPTED',
+          reason: reason || (decision==='approved' ? 'Welcome to the Mystfit staff team! Jellou will reach out on Discord soon.' : 'No additional reason provided.'),
+          ign: app.ign,
+          discord: app.discord
+        });
+      } catch(e) { console.log('Email send error', e); }
+    }
+    loadApplications();
+  }
+</script>
+</body>
+</html>
